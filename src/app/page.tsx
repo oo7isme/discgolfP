@@ -110,7 +110,7 @@ export default function Home() {
     return {
       userRank: userRank || 0,
       userEntry,
-      topPlayers: leaderboard.slice(0, 5) // Top 5 players
+      topPlayers: leaderboard.slice(0, 3) // Top 3 players (pole positions)
     }
   })() : null
 
@@ -292,12 +292,9 @@ export default function Home() {
               return (
                 <Card key={statKey} className={colors.bg}>
                   <CardContent className="p-3">
-                    <div className="flex flex-col items-center gap-2">
+                    <div className="flex flex-col justify-center items-center gap-2">
                       {/* Icon */}
-                      <div className={`${colors.iconBg} w-10 h-10 rounded-lg flex items-center justify-center`}>
-                        <IconComponent className="w-6 h-6 text-white" />
-                      </div>
-                      
+                        <IconComponent className={`${colors.text}`}/>
                       {/* Value with arrow */}
                       <div className="flex items-center gap-1">
                         <span className={`text-2xl font-bold ${colors.text}`}>
@@ -346,40 +343,58 @@ export default function Home() {
                   <CardTitle className="text-base">Leaderboard</CardTitle>
                 </div>
               </CardHeader>
-              <CardContent className="p-3">
-                <div className="space-y-2">
-                  {userLeaderboardData?.topPlayers?.map((entry: any, index: number) => (
-                    <div
-                      key={entry.userId}
-                      className={`flex items-center justify-between p-2 rounded ${
-                        entry.userId === currentUser?._id ? 'bg-primary/10' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${
-                          index === 0 ? 'bg-yellow-500 text-white' : 
-                          index === 1 ? 'bg-gray-400 text-white' : 
-                          index === 2 ? 'bg-orange-500 text-white' : 
-                          'bg-gray-100 text-gray-600'
-                        }`}>
-                          {index + 1}
-                        </div>
-                        <span className="text-sm font-medium text-foreground">
-                          {entry.name || entry.username || 'Unknown'}
-                        </span>
+              <CardContent className="px-4">
+                {userLeaderboardData?.topPlayers?.length ? (
+                  <div className="grid grid-cols-3 items-end gap-3">
+                    {/* 2nd place */}
+                    <div className="flex flex-col items-center">
+                      <Trophy className="w-6 h-6 text-gray-400 mb-1" />
+                      <div className="h-20 w-full rounded-md bg-muted/70 flex items-end justify-center">
+                        <div className="mb-2 text-xs font-semibold text-muted-foreground">2</div>
                       </div>
-                      <div className="text-sm font-bold text-foreground">
-                        {entry.averageScore.toFixed(1)}
+                      <div className="mt-2 text-center text-sm font-medium truncate w-full">
+                        {(userLeaderboardData.topPlayers[1]?.username) || (userLeaderboardData.topPlayers[1]?.name) || ''}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {userLeaderboardData.topPlayers[1]?.averageScore?.toFixed?.(1) || ''}
                       </div>
                     </div>
-                  ))}
-                  
-                  {userLeaderboardData && userLeaderboardData.userRank > 5 && (
-                    <div className="pt-2 border-t text-center text-xs text-muted-foreground">
-                      Your rank: #{userLeaderboardData.userRank}
+
+                    {/* 1st place */}
+                    <div className="flex flex-col items-center">
+                      <Trophy className="w-7 h-7 text-yellow-500 mb-1" />
+                      <div className="h-28 w-full rounded-md bg-yellow-500/90 flex items-end justify-center text-white">
+                        <div className="mb-2 text-xs font-semibold">1</div>
+                      </div>
+                      <div className="mt-2 text-center text-sm font-semibold truncate w-full">
+                        {(userLeaderboardData.topPlayers[0]?.username) || (userLeaderboardData.topPlayers[0]?.name) || ''}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {userLeaderboardData.topPlayers[0]?.averageScore?.toFixed?.(1) || ''}
+                      </div>
                     </div>
-                  )}
-                </div>
+
+                    {/* 3rd place */}
+                    <div className="flex flex-col items-center">
+                      <Trophy className="w-6 h-6 text-orange-500 mb-1" />
+                      <div className="h-16 w-full rounded-md bg-orange-400/80 flex items-end justify-center text-white">
+                        <div className="mb-2 text-xs font-semibold">3</div>
+                      </div>
+                      <div className="mt-2 text-center text-sm font-medium truncate w-full">
+                        {(userLeaderboardData.topPlayers[2]?.username) || (userLeaderboardData.topPlayers[2]?.name) || ''}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {userLeaderboardData.topPlayers[2]?.averageScore?.toFixed?.(1) || ''}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {userLeaderboardData && userLeaderboardData.userRank > 3 && (
+                  <div className="pt-3 text-center text-xs text-muted-foreground">
+                    Your rank: #{userLeaderboardData.userRank}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
