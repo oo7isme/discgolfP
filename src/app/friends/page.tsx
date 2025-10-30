@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useState } from 'react';
+import { Share } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function FriendsPage() {
@@ -164,6 +165,30 @@ export default function FriendsPage() {
     }
   };
 
+  const handleShareProfile = async () => {
+    if (!currentUser) return;
+    const usernameToShare = currentUser.username;
+    const shareText = usernameToShare
+      ? `Add me on DiscGolfP: @${usernameToShare}`
+      : `Add me on DiscGolfP!`;
+    const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'DiscGolfP Profile', text: shareText, url: shareUrl });
+        toast({ title: 'Shared!', description: 'Your profile was shared successfully.' });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`.trim());
+        toast({ title: 'Copied to clipboard', description: 'Share message copied.' });
+      } else {
+        // Fallback: prompt
+        window.prompt('Copy your share message:', `${shareText}\n${shareUrl}`.trim());
+      }
+    } catch (err) {
+      toast({ title: 'Share cancelled', description: 'Could not complete sharing.', variant: 'destructive' });
+    }
+  };
+
   // Temporarily disabled for testing
   // if (!user || !currentUser) {
   //   return (
@@ -191,27 +216,28 @@ export default function FriendsPage() {
       {currentUser && (
         <Card>
           <CardHeader>
-            <CardTitle>Your Username</CardTitle>
-            <CardDescription>
-              {currentUser.username 
-                ? `Your current username is @${currentUser.username}` 
-                : "Set a username so others can find you easily"
-              }
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {currentUser.username ? (
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">@{currentUser.username}</Badge>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setMyUsername(currentUser.username || '')}
-                >
-                  Change Username
-                </Button>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <CardTitle>Your Username</CardTitle>
+                <CardDescription>
+                  {currentUser.username 
+                    ? `Your current username is ${currentUser.username}`  
+                    : "Set a username so others can find you easily"
+                  }
+                </CardDescription>
               </div>
-            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleShareProfile}
+                aria-label="Share your profile"
+              >
+                <Share className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          {currentUser.username ? null : (
+            <CardContent>
               <form onSubmit={handleUpdateUsername} className="space-y-4">
                 <div>
                   <Label htmlFor="myUsername">Choose a username</Label>
@@ -239,8 +265,8 @@ export default function FriendsPage() {
                   {isUpdatingUsername ? 'Setting...' : 'Set Username'}
                 </Button>
               </form>
-            )}
-          </CardContent>
+            </CardContent>
+          )}
         </Card>
       )}
 

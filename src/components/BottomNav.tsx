@@ -2,12 +2,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Home, Disc3, BarChart3, User } from "lucide-react";
 
 const navItems = [
-  { href: "/", icon: "🏠", label: "Home" },
-  { href: "/new", icon: "🥏", label: "New Round" },
-  { href: "/stats", icon: "📊", label: "Stats" },
-  { href: "/profile", icon: "👤", label: "Profile" },
+  { href: "/", icon: Home, label: "Home" },
+  { href: "/new", icon: Disc3, label: "New Round" },
+  { href: "/stats", icon: BarChart3, label: "Stats" },
+  { href: "/profile", icon: User, label: "Profile" },
 ];
 
 interface BottomNavProps {
@@ -39,10 +40,12 @@ export default function BottomNav({ user }: BottomNavProps) {
               )}
             >
               <div className="flex flex-col items-center gap-1">
-                <span className={cn(
-                  "text-xl transition-transform duration-200",
-                  isActive && "scale-110"
-                )}>{item.icon}</span>
+                <item.icon
+                  className={cn(
+                    "h-5 w-5 transition-transform duration-200",
+                    isActive && "scale-110"
+                  )}
+                />
                 <div className={cn(
                   "text-xs font-medium transition-colors",
                   isActive ? "text-primary" : "text-muted-foreground"
