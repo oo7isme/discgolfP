@@ -371,7 +371,7 @@ export default function Home() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-center gap-2">
                   <Trophy className="w-5 h-5 text-primary" />
-                  <CardTitle className="text-base">Leaderboard</CardTitle>
+                  <CardTitle className="text-base"> All users Leaderboard</CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="px-4">
