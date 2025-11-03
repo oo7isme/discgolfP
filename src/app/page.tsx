@@ -317,15 +317,16 @@ export default function Home() {
               const range = maxVal - minVal || 1
               
               return (
-                <Card key={statKey} className={colors.bg}>
-                  <CardContent className="p-3">
-                    <div className="flex flex-col justify-center items-center gap-2">
+                <Card key={statKey} className={`${colors.bg} h-full`}>
+                  <CardContent className="p-3 h-full">
+                    <div className="flex flex-col items-center justify-center gap-2 h-full">
                       {/* Icon */}
                       {statKey === 'totalRounds' ? (
-                        <DgBasketIcon className={colors.text} size={35} />
+                        <DgBasketIcon className={colors.text} size={38} />
                       ) : (
-                        <IconComponent className={`${colors.text}`}/>
+                        <IconComponent className={`${colors.text} w-8 h-8`} />
                       )}
+                      
                       {/* Value with arrow */}
                       <div className="flex items-center gap-1">
                         <span className={`text-2xl font-bold ${colors.text}`}>

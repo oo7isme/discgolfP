@@ -9,17 +9,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useState } from 'react';
-import { Share } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Share, Copy, Search, Check, X, Loader2, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function FriendsPage() {
   const { user } = useUser();
-  const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
+  const [inviteQuery, setInviteQuery] = useState('');
   const [myUsername, setMyUsername] = useState('');
   const [isInviting, setIsInviting] = useState(false);
-  const [isInvitingByUsername, setIsInvitingByUsername] = useState(false);
   const [isUpdatingUsername, setIsUpdatingUsername] = useState(false);
   const { toast } = useToast();
 
@@ -28,6 +26,9 @@ export default function FriendsPage() {
   );
   
   const friends = useQuery(api.friends.getFriends, 
+    currentUser ? { userId: currentUser._id } : "skip"
+  );
+  const userRounds = useQuery(api.rounds.getByUser,
     currentUser ? { userId: currentUser._id } : "skip"
   );
   const pendingRequests = useQuery(api.friends.getPendingRequests, 
@@ -42,66 +43,46 @@ export default function FriendsPage() {
   const acceptFriend = useMutation(api.friends.acceptFriend);
   const rejectFriend = useMutation(api.friends.rejectFriend);
   const updateUserWithUsername = useMutation(api.users.updateUserWithUsername);
+  const isEmailInput = !!inviteQuery && /[^\s@]+@[^\s@]+\.[^\s@]+/.test(inviteQuery.trim());
+  const normalizedUsername = !isEmailInput ? inviteQuery.trim().replace(/^@/, '') : '';
+  const [debouncedUsername, setDebouncedUsername] = useState('');
+  useEffect(() => {
+    if (isEmailInput) {
+      setDebouncedUsername('');
+      return;
+    }
+    const value = normalizedUsername;
+    const t = setTimeout(() => setDebouncedUsername(value), 300);
+    return () => clearTimeout(t);
+  }, [normalizedUsername, isEmailInput]);
   const checkUserByUsername = useQuery(api.friends.checkUserByUsername, 
-    username ? { username } : "skip"
+    debouncedUsername ? { username: debouncedUsername } : "skip"
   );
   const checkMyUsername = useQuery(api.users.checkUsername, 
     myUsername ? { username: myUsername } : "skip"
   );
 
-  const handleInviteFriend = async (e: React.FormEvent) => {
+  const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || !email) return;
+    if (!currentUser || !inviteQuery.trim()) return;
 
     setIsInviting(true);
     try {
-      await inviteFriend({
-        requesterId: currentUser._id,
-        addresseeEmail: email,
-      });
-      
-      toast({
-        title: "Friend request sent!",
-        description: `Friend request sent to ${email}`,
-      });
-      
-      setEmail('');
+      if (isEmailInput) {
+        const emailToInvite = inviteQuery.trim().toLowerCase();
+        await inviteFriend({ requesterId: currentUser._id, addresseeEmail: emailToInvite });
+        toast({ title: 'Friend request sent!', description: `Friend request sent to ${emailToInvite}` });
+      } else {
+        const handle = normalizedUsername;
+        if (!handle) return;
+        await inviteFriendByUsername({ requesterId: currentUser._id, username: handle });
+        toast({ title: 'Friend request sent!', description: `Friend request sent to @${handle}` });
+      }
+      setInviteQuery('');
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to send friend request. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: 'Error', description: 'Failed to send friend request. Please try again.', variant: 'destructive' });
     } finally {
       setIsInviting(false);
-    }
-  };
-
-  const handleInviteFriendByUsername = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentUser || !username) return;
-
-    setIsInvitingByUsername(true);
-    try {
-      await inviteFriendByUsername({
-        requesterId: currentUser._id,
-        username: username,
-      });
-      
-      toast({
-        title: "Friend request sent!",
-        description: `Friend request sent to @${username}`,
-      });
-      
-      setUsername('');
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to send friend request. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsInvitingByUsername(false);
     }
   };
 
@@ -189,6 +170,21 @@ export default function FriendsPage() {
     }
   };
 
+  const handleCopyUsername = async () => {
+    if (!currentUser?.username) return;
+    const handle = `@${currentUser.username}`;
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(handle);
+        toast({ title: 'Copied', description: `${handle} copied to clipboard` });
+      } else {
+        window.prompt('Copy username:', handle);
+      }
+    } catch (_) {
+      toast({ title: 'Copy failed', description: 'Could not copy username', variant: 'destructive' });
+    }
+  };
+
   // Temporarily disabled for testing
   // if (!user || !currentUser) {
   //   return (
@@ -216,24 +212,42 @@ export default function FriendsPage() {
       {currentUser && (
         <Card>
           <CardHeader>
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <CardTitle>Your Username</CardTitle>
-                <CardDescription>
-                  {currentUser.username 
-                    ? `Your current username is ${currentUser.username}`  
-                    : "Set a username so others can find you easily"
-                  }
-                </CardDescription>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar className="w-10 h-10">
+                  <AvatarImage src={user?.imageUrl} />
+                  <AvatarFallback>
+                    {user?.fullName?.charAt(0) || user?.emailAddresses?.[0]?.emailAddress?.charAt(0) || '?'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <div className="text-base font-semibold truncate">
+                    {user?.fullName || 'Your Name'}
+                  </div>
+                  <div className="text-sm text-muted-foreground truncate">
+                    {currentUser.username ? `@${currentUser.username}` : 'No username yet'}
+                  </div>
+                </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleShareProfile}
-                aria-label="Share your profile"
-              >
-                <Share className="w-4 h-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCopyUsername}
+                  aria-label="Copy username"
+                  disabled={!currentUser?.username}
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleShareProfile}
+                  aria-label="Share your profile"
+                >
+                  <Share className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </CardHeader>
           {currentUser.username ? null : (
@@ -273,68 +287,55 @@ export default function FriendsPage() {
       {/* Invite Friend */}
       <Card>
         <CardHeader>
-          <CardTitle>Invite Friend</CardTitle>
-          <CardDescription>
-            Send a friend request to another player
-          </CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            Invite Friend
+            <UserPlus className="w-5 h-5 text-primary" />
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Invite by Username */}
+          {/* Unified Invite */}
           <div>
-            <h3 className="text-lg font-semibold mb-3">Add by Username</h3>
-            <form onSubmit={handleInviteFriendByUsername} className="space-y-4">
-              <div>
-                <Label htmlFor="username">Username</Label>
+            <form onSubmit={handleInvite} className="space-y-3">
+              <div className="relative">
                 <Input
-                  id="username"
-                  placeholder="@username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  id="invite-input"
+                  placeholder="Add a friend by email or username"
+                  value={inviteQuery}
+                  onChange={(e) => setInviteQuery(e.target.value)}
                   required
                 />
-                {username && checkUserByUsername && (
-                  <div className="text-sm mt-1">
-                    {checkUserByUsername.exists ? (
-                      <span className="text-green-600">✓ User found: {checkUserByUsername.user?.name || checkUserByUsername.user?.email}</span>
+                {inviteQuery && !isEmailInput && (
+                  <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                    {(!debouncedUsername) ? (
+                      <Search className="w-4 h-4 text-muted-foreground" />
+                    ) : (checkUserByUsername === undefined) ? (
+                      <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+                    ) : checkUserByUsername?.exists ? (
+                      <Check className="w-4 h-4 text-green-600" />
                     ) : (
-                      <span className="text-red-600">✗ User not found</span>
+                      <X className="w-4 h-4 text-red-600" />
                     )}
                   </div>
                 )}
               </div>
-              <Button type="submit" disabled={isInvitingByUsername || !checkUserByUsername?.exists}>
-                {isInvitingByUsername ? 'Sending...' : 'Send Friend Request'}
-              </Button>
-            </form>
-          </div>
-
-          {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Or</span>
-            </div>
-          </div>
-
-          {/* Invite by Email */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3">Add by Email</h3>
-            <form onSubmit={handleInviteFriend} className="space-y-4">
-              <div>
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="friend@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <Button type="submit" disabled={isInviting}>
-                {isInviting ? 'Sending...' : 'Send Friend Request'}
+              {inviteQuery && !isEmailInput && (
+                <div className="text-sm mt-1 min-h-[1rem]">
+                  {checkUserByUsername?.exists === false ? (
+                    <span className="text-red-600">User not found</span>
+                  ) : checkUserByUsername?.exists === true ? (
+                    <span className="text-green-600">User found: {checkUserByUsername.user?.name || checkUserByUsername.user?.email}</span>
+                  ) : debouncedUsername ? (
+                    <span className="text-muted-foreground">Searching…</span>
+                  ) : null}
+                </div>
+              )}
+              <Button
+                type="submit"
+                disabled={
+                  isInviting || (!isEmailInput && (!!debouncedUsername && checkUserByUsername?.exists === false))
+                }
+              >
+                {isInviting ? 'Sending…' : 'Send request'}
               </Button>
             </form>
           </div>
