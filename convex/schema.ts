@@ -44,6 +44,8 @@ export default defineSchema({
     startedAt: v.number(),
     completed: v.boolean(),
     totalStrokes: v.optional(v.number()),
+    totalPar: v.optional(v.number()),
+    relativeToPar: v.optional(v.number()),
     rating: v.optional(v.number()),
     roundType: v.union(
       v.literal("CASUAL"),

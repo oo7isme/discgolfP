@@ -300,6 +300,19 @@ export const create = mutation({
       });
     }
 
+    // Compute totals for this round and store on the round document for fast queries/achievements
+    const totalStrokes = args.scores.reduce((sum, s) => sum + s.strokes, 0);
+    const courseHoles = await ctx.db
+      .query("courseHoles")
+      .withIndex("by_course", (q) => q.eq("courseId", args.courseId))
+      .collect();
+    const totalPar = courseHoles.reduce((sum, h) => sum + (h.par || 0), 0);
+    await ctx.db.patch(roundId, {
+      totalStrokes,
+      totalPar,
+      relativeToPar: totalPar > 0 ? totalStrokes - totalPar : undefined,
+    });
+
 
     // Check for achievements after round completion
     try {

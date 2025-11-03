@@ -10,6 +10,7 @@ export function useCurrentUser() {
   )
   const createUser = useMutation(api.users.createUser)
   const generateUsernameForUser = useMutation(api.users.generateUsernameForUser)
+  const updateUserWithUsername = useMutation(api.users.updateUserWithUsername)
 
   // Automatically create user in Convex when they sign in with Clerk
   useEffect(() => {
@@ -19,13 +20,15 @@ export function useCurrentUser() {
       const name = user.fullName || '';
       
       // Generate username from email or name
-      let username = '';
-      if (name) {
-        // Use name: "John Doe" -> "john_doe"
-        username = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-      } else if (email) {
-        // Use email: "john@example.com" -> "john"
-        username = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
+      let username = user.username || '';
+      if (!username) {
+        if (name) {
+          // Use name: "John Doe" -> "john_doe"
+          username = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+        } else if (email) {
+          // Use email: "john@example.com" -> "john"
+          username = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
+        }
       }
       
       // Add random number if username is too short or empty
@@ -48,14 +51,23 @@ export function useCurrentUser() {
   // Automatically generate username for existing users who don't have one
   useEffect(() => {
     if (isLoaded && user && currentUser && !currentUser.username) {
-      // User exists in Convex but doesn't have a username
-      generateUsernameForUser({
-        clerkId: user.id,
-      }).catch((error) => {
-        console.error('Failed to generate username for user:', error)
-      })
+      // Prefer Clerk's username if available, otherwise generate
+      if (user.username) {
+        updateUserWithUsername({
+          clerkId: user.id,
+          username: user.username,
+        }).catch((error) => {
+          console.error('Failed to update username from Clerk:', error)
+        })
+      } else {
+        generateUsernameForUser({
+          clerkId: user.id,
+        }).catch((error) => {
+          console.error('Failed to generate username for user:', error)
+        })
+      }
     }
-  }, [isLoaded, user, currentUser, generateUsernameForUser])
+  }, [isLoaded, user, currentUser, generateUsernameForUser, updateUserWithUsername])
 
   return {
     user,

@@ -47,8 +47,46 @@ export async function POST(req: NextRequest) {
   // Handle the webhook
   const eventType = evt.type;
 
-  if (eventType === 'user.deleted') {
-    const { id } = evt.data;
+  // Upsert helper to normalize Clerk user to our Convex schema
+  const upsertFromClerk = async (clerkUser: any) => {
+    const id = clerkUser?.id;
+    const email = clerkUser?.email_addresses?.[0]?.email_address || clerkUser?.primary_email_address_id || '';
+    const username = clerkUser?.username || undefined;
+    const name = (
+      clerkUser?.first_name || clerkUser?.last_name
+        ? `${clerkUser?.first_name || ''} ${clerkUser?.last_name || ''}`.trim()
+        : clerkUser?.full_name
+    ) || undefined;
+    const image = clerkUser?.image_url || undefined;
+
+    if (!id) return;
+
+    try {
+      // Try create; if it exists, update
+      await convex.mutation(api.users.createUser, {
+        email,
+        username,
+        name,
+        image,
+        clerkId: id,
+      });
+    } catch (e) {
+      // Fall back to update when user already exists
+      await convex.mutation(api.users.updateUser, {
+        clerkId: id,
+        username,
+        name,
+        image,
+      });
+    }
+  };
+
+  if (eventType === 'user.created') {
+    await upsertFromClerk(evt.data);
+  } else if (eventType === 'user.updated') {
+    await upsertFromClerk(evt.data);
+  } else if (eventType === 'user.deleted') {
+    const { id } = evt.data as any;
     
     if (!id) {
       console.error('No user ID in webhook data');

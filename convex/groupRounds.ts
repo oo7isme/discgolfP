@@ -46,6 +46,12 @@ export const createGroupRound = mutation({
     const roundIds = [];
     for (const participant of args.participants) {
       const totalStrokes = participant.scores.reduce((sum, score) => sum + score.strokes, 0);
+      // Compute course par once
+      const courseHoles = await ctx.db
+        .query("courseHoles")
+        .withIndex("by_course", (q) => q.eq("courseId", args.courseId))
+        .collect();
+      const totalPar = courseHoles.reduce((sum, h) => sum + (h.par || 0), 0);
       
       // Create the round
       const roundId = await ctx.db.insert("rounds", {
@@ -54,6 +60,8 @@ export const createGroupRound = mutation({
         startedAt: now,
         completed: true,
         totalStrokes,
+        totalPar,
+        relativeToPar: totalPar > 0 ? totalStrokes - totalPar : undefined,
         roundType: args.roundType,
         notes: args.notes,
         shared: false,
