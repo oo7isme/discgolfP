@@ -354,4 +354,30 @@ export const cleanupOrphanedUsers = mutation({
   },
 });
 
+export const searchUsers = query({
+  args: { searchTerm: v.string() },
+  handler: async (ctx, args) => {
+    if (!args.searchTerm || args.searchTerm.trim().length < 2) {
+      return [];
+    }
+
+    const searchTerm = args.searchTerm.toLowerCase().trim();
+    const allUsers = await ctx.db.query("users").collect();
+    
+    // Filter users by username, name, or email
+    const matchingUsers = allUsers.filter(user => {
+      const username = (user.username || '').toLowerCase();
+      const name = (user.name || '').toLowerCase();
+      const email = (user.email || '').toLowerCase();
+      
+      return username.includes(searchTerm) || 
+             name.includes(searchTerm) || 
+             email.includes(searchTerm);
+    });
+
+    // Return up to 10 results
+    return matchingUsers.slice(0, 10);
+  },
+});
+
 

@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useRouter } from 'next/navigation';
-import { Clock, MapPin, Users, Trophy, Calendar, Target, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Star, BarChart3, Activity, Cloud } from 'lucide-react';
+import { Clock, MapPin, Users, Trophy, Calendar, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Star, BarChart3, Activity, Cloud } from 'lucide-react';
+import DgBasketIcon from '@/components/DgBasketIcon';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState, useRef, useEffect } from 'react';
 
@@ -159,7 +160,7 @@ export default function RoundsPage() {
                           {formatDate(round.startedAt)}
                         </div>
                         <div className="flex items-center gap-1">
-                          <Target className="h-4 w-4" />
+                          <DgBasketIcon className="h-4 w-4" size={16} />
                           {round.totalStrokes} strokes
                         </div>
                         <div className="flex items-center gap-1">

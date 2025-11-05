@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,8 +15,9 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from '@/hooks/use-toast';
 import { FriendSelector } from '@/components/FriendSelector';
-import { Cloud, MapPin } from 'lucide-react';
+import { Cloud, MapPin, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { DialogClose } from '@/components/ui/dialog';
 
 interface Participant {
   id: string;
@@ -60,14 +61,7 @@ export function StartRoundModal({ course, isOpen, onClose, onStartGame }: StartR
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
 
-  // Fetch weather data when modal opens
-  useEffect(() => {
-    if (isOpen && course.latitude && course.longitude) {
-      // Optionally fetch weather on open
-    }
-  }, [isOpen, course]);
-
-  const handleFetchWeather = async () => {
+  const handleFetchWeather = useCallback(async () => {
     if (!course.latitude || !course.longitude) {
      
       return;
@@ -103,7 +97,14 @@ export function StartRoundModal({ course, isOpen, onClose, onStartGame }: StartR
     } finally {
       setIsLoadingWeather(false);
     }
-  };
+  }, [course.latitude, course.longitude, toast]);
+
+  // Fetch weather data automatically when modal opens
+  useEffect(() => {
+    if (isOpen && course.latitude && course.longitude && !weather && !isLoadingWeather) {
+      handleFetchWeather();
+    }
+  }, [isOpen, course.latitude, course.longitude, weather, isLoadingWeather, handleFetchWeather]);
 
   const handleStartGame = () => {
     onStartGame({
@@ -117,36 +118,35 @@ export function StartRoundModal({ course, isOpen, onClose, onStartGame }: StartR
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto w-[95vw]">
-        <DialogHeader>
-          <DialogTitle>Start Round</DialogTitle>
-          <DialogDescription>
-            Configure your round settings
-          </DialogDescription>
+      <DialogContent className="w-[90vw] max-w-[350px] max-h-[90vh] overflow-y-auto overflow-x-hidden" showCloseButton={false}>
+        {/* Custom close button in top left */}
+        <DialogClose
+          onClick={onClose}
+          className="absolute top-4 left-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none"
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </DialogClose>
+
+        <DialogHeader className="flex flex-row items-center justify-between gap-4 pr-0 min-w-0 w-full">
+          <div className="flex flex-col gap-2 flex-1 min-w-0">
+            <DialogTitle className="truncate">Create Your Round</DialogTitle>
+          </div>
+          {/* Round Type Selection in header */}
+          <Select value={roundType} onValueChange={setRoundType}>
+            <SelectTrigger className="h-10 w-[100px] ml-auto flex-shrink-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="CASUAL">Casual</SelectItem>
+              <SelectItem value="PRACTICE">Practice</SelectItem>
+              <SelectItem value="TOURNAMENT">Tournament</SelectItem>
+              <SelectItem value="COMPETITIVE">Competitive</SelectItem>
+            </SelectContent>
+          </Select>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Round Type Selection */}
-          <Card>
-            <CardContent>
-              <div className="flex items-center justify-around">
-                <div>
-                  <h3 className="font-semibold text-sm">Round Type</h3>
-                </div>
-                <Select value={roundType} onValueChange={setRoundType}>
-                  <SelectTrigger className="h-10">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CASUAL">Casual</SelectItem>
-                    <SelectItem value="PRACTICE">Practice</SelectItem>
-                    <SelectItem value="TOURNAMENT">Tournament</SelectItem>
-                    <SelectItem value="COMPETITIVE">Competitive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="space-y-4 w-full min-w-0">
 
           {/* Friend/Player Selection */}
           <FriendSelector 
@@ -157,54 +157,39 @@ export function StartRoundModal({ course, isOpen, onClose, onStartGame }: StartR
 
           {/* Weather Selection */}
           <Card>
-            <CardContent className="p-4">
-              <div className="space-y-3">
-                <div>
-                  <h3 className="font-semibold text-sm">Weather Conditions</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Current weather at the course
-                  </p>
-                </div>
-                
-                {course.latitude && course.longitude ? (
-                  <div className="space-y-2">
-                    <Button
-                      variant="outline"
-                      onClick={handleFetchWeather}
-                      disabled={isLoadingWeather}
-                      className="w-full"
-                    >
-                      <Cloud className="w-4 h-4 mr-2" />
-                      {isLoadingWeather ? 'Fetching...' : 'Fetch Weather'}
-                    </Button>
-                    
-                    {weather && (
-                      <div className="grid grid-cols-2 gap-2 p-3 bg-muted/50 rounded-lg">
-                        <div>
-                          <div className="text-xs text-muted-foreground">Temperature</div>
-                          <div className="text-sm font-semibold">{weather.temperature}°C</div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-muted-foreground">Wind</div>
-                          <div className="text-sm font-semibold">{weather.windSpeed} m/s</div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-muted-foreground">Conditions</div>
-                          <div className="text-sm font-semibold">{weather.conditions}</div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-muted-foreground">Humidity</div>
-                          <div className="text-sm font-semibold">{weather.humidity}%</div>
-                        </div>
-                      </div>
-                    )}
+            <CardHeader className="pb-1 px-4 pt-3">
+              <CardTitle className="text-base mb-0.5">Weather Conditions</CardTitle>
+              <CardDescription className="text-xs mt-0">
+                Current weather at the course
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-4 pb-3 pt-0">
+              {course.latitude && course.longitude ? (
+                weather && (
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 p-2 bg-muted/50 rounded-lg">
+                    <div>
+                      <div className="text-xs text-muted-foreground leading-tight">Temperature</div>
+                      <div className="text-sm font-semibold leading-tight">{weather.temperature}°C</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground leading-tight">Wind</div>
+                      <div className="text-sm font-semibold leading-tight">{weather.windSpeed} m/s</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground leading-tight">Conditions</div>
+                      <div className="text-sm font-semibold leading-tight">{weather.conditions}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground leading-tight">Humidity</div>
+                      <div className="text-sm font-semibold leading-tight">{weather.humidity}%</div>
+                    </div>
                   </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Location data not available for this course
-                  </p>
-                )}
-              </div>
+                )
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Location data not available for this course
+                </p>
+              )}
             </CardContent>
           </Card>
 

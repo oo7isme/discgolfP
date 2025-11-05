@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, UserPlus, Plus, Minus } from 'lucide-react';
+import { User, UserPlus, Plus, Minus, Target, Ruler, Trophy, TrendingUp } from 'lucide-react';
+import { HoleMap } from '@/components/HoleMap';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 interface Participant {
   id: string;
@@ -38,6 +39,8 @@ export function MultiPlayerScoreInput({
   onCurrentHoleChange
 }: MultiPlayerScoreInputProps) {
   const [currentHole, setCurrentHole] = useState(0);
+  const [showHalfwayReview, setShowHalfwayReview] = useState(false);
+  const [hasShownHalfwayReview, setHasShownHalfwayReview] = useState(false);
   const [scores, setScores] = useState<ScoreData>(() => {
     const initialScores: ScoreData = {};
     // Initialize scores for 'you'
@@ -97,6 +100,27 @@ export function MultiPlayerScoreInput({
     return Object.values(participantScores).reduce((sum, score) => sum + score, 0);
   };
 
+  // Calculate scores for first 9 holes
+  const getFirstNineScore = (participantId: string) => {
+    const participantScores = scores[participantId] || {};
+    const firstNineHoles = Array.from({ length: 9 }, (_, i) => i);
+    return firstNineHoles.reduce((sum, hole) => sum + (participantScores[hole] || 0), 0);
+  };
+
+  // Calculate par for first 9 holes
+  const getFirstNinePar = () => {
+    const firstNineHoles = courseHoles?.slice(0, 9) || [];
+    return firstNineHoles.reduce((sum, hole) => sum + hole.par, 0);
+  };
+
+  // Check if we've reached halfway point (after hole 9, moving to hole 10)
+  useEffect(() => {
+    if (currentHole === 9 && !hasShownHalfwayReview && totalHoles >= 18) {
+      setShowHalfwayReview(true);
+      setHasShownHalfwayReview(true);
+    }
+  }, [currentHole, hasShownHalfwayReview, totalHoles]);
+
   const isRoundComplete = () => {
     return currentHole === totalHoles - 1;
   };
@@ -138,21 +162,14 @@ export function MultiPlayerScoreInput({
         </Button>
         
         <div className="flex-1">
-          <Input
-            type="number"
-            placeholder="Strokes"
-            value={currentScore}
-            onChange={(e) => handleScoreChange(participantId, hole, parseInt(e.target.value) || 1)}
-            className={`text-center text-2xl font-bold py-3 border-2 ${
+          <div
+            className={`text-center text-2xl font-bold py-3 border-2 rounded-md ${
               isPar ? 'border-blue-400 bg-blue-50 text-blue-700' :
               isUnderPar ? 'border-green-400 bg-green-50 text-green-700' :
-              isOverPar ? 'border-red-400 bg-red-50 text-red-700' : 'border-gray-300'
+              isOverPar ? 'border-red-400 bg-red-50 text-red-700' : 'border-gray-300 bg-gray-50'
             }`}
-            min="1"
-            max="20"
-          />
-          <div className="text-sm text-center mt-2 font-medium">
-            {isPar ? '🎯 Par' : isUnderPar ? `🦅 ${currentPar - currentScore} under` : `📈 ${currentScore - currentPar} over`}
+          >
+            {currentScore} ({isPar ? ' E' : isUnderPar ? `- ${currentPar - currentScore}` : `+ ${currentScore - currentPar} `})
           </div>
         </div>
         
@@ -172,8 +189,164 @@ export function MultiPlayerScoreInput({
   const currentHoleData = courseHoles?.find(h => h.hole === currentHole + 1);
   const currentDistance = currentHoleData?.distanceMeters || 0;
 
+  const firstNinePar = getFirstNinePar();
+  const allParticipants = [
+    { id: 'you', name: 'You', type: 'user' as const },
+    ...participants
+  ];
+
   return (
-    <Card className="shadow-lg border-2">
+    <>
+      {/* Halfway Review Dialog */}
+      <Dialog open={showHalfwayReview} onOpenChange={setShowHalfwayReview}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-2xl">
+              <Trophy className="h-6 w-6 text-yellow-500" />
+              Halfway Review
+            </DialogTitle>
+            <DialogDescription>
+              You've completed the first 9 holes! Here's how everyone is doing.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+            {allParticipants.map((participant) => {
+              const firstNineScore = getFirstNineScore(participant.id);
+              const scoreToPar = firstNineScore - firstNinePar;
+              const isUnderPar = scoreToPar < 0;
+              const isOverPar = scoreToPar > 0;
+              const isPar = scoreToPar === 0;
+              const participantScores = scores[participant.id] || {};
+
+              return (
+                <div
+                  key={participant.id}
+                  className={`p-4 rounded-lg border-2 ${
+                    isUnderPar
+                      ? 'border-green-400 bg-green-50'
+                      : isPar
+                      ? 'border-blue-400 bg-blue-50'
+                      : 'border-red-400 bg-red-50'
+                  }`}
+                >
+                  {/* Header with total score */}
+                  <div className="flex items-center justify-between mb-3 pb-3 border-b">
+                    <div className="flex items-center gap-2">
+                      {participant.type === 'user' ? (
+                        <User className="h-5 w-5" />
+                      ) : (
+                        <UserPlus className="h-5 w-5" />
+                      )}
+                      <span className="font-semibold">{participant.name}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold">
+                        {firstNineScore}
+                      </div>
+                      <div
+                        className={`text-sm font-medium ${
+                          isUnderPar
+                            ? 'text-green-700'
+                            : isPar
+                            ? 'text-blue-700'
+                            : 'text-red-700'
+                        }`}
+                      >
+                        {isPar
+                          ? 'Even'
+                          : isUnderPar
+                          ? `${Math.abs(scoreToPar)} under par`
+                          : `${scoreToPar} over par`}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Hole-by-hole breakdown */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-muted-foreground mb-2">
+                      Hole-by-Hole Breakdown
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {Array.from({ length: 9 }, (_, i) => {
+                        const holeNumber = i;
+                        const holeScore = participantScores[holeNumber] || 0;
+                        const holeData = courseHoles?.find(h => h.hole === holeNumber + 1);
+                        const holePar = holeData?.par || 3;
+                        const holeScoreToPar = holeScore - holePar;
+                        const holeIsUnderPar = holeScoreToPar < 0;
+                        const holeIsOverPar = holeScoreToPar > 0;
+                        const holeIsPar = holeScoreToPar === 0;
+
+                        return (
+                          <div
+                            key={holeNumber}
+                            className={`p-2 rounded text-center border ${
+                              holeIsUnderPar
+                                ? 'border-green-300 bg-green-100/50'
+                                : holeIsPar
+                                ? 'border-blue-300 bg-blue-100/50'
+                                : 'border-red-300 bg-red-100/50'
+                            }`}
+                          >
+                            <div className="text-xs text-muted-foreground mb-1">
+                              H{holeNumber + 1}
+                            </div>
+                            <div className="text-lg font-bold">
+                              {holeScore}
+                            </div>
+                            <div className={`text-xs ${
+                              holeIsUnderPar
+                                ? 'text-green-700'
+                                : holeIsPar
+                                ? 'text-blue-700'
+                                : 'text-red-700'
+                            }`}>
+                              {holeIsPar
+                                ? 'E'
+                                : holeIsUnderPar
+                                ? `-${Math.abs(holeScoreToPar)}`
+                                : `+${holeScoreToPar}`}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground mt-0.5">
+                              Par {holePar}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Summary */}
+            <div className="pt-4 border-t">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Front 9 Par:</span>
+                <span className="font-semibold">{firstNinePar}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm mt-1">
+                <span className="text-muted-foreground">Holes remaining:</span>
+                <span className="font-semibold">9 holes</span>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={() => setShowHalfwayReview(false)}
+              className="w-full"
+              size="lg"
+            >
+              <TrendingUp className="h-4 w-4 mr-2" />
+              Continue Round
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Card className="shadow-lg border-2">
       <CardHeader className="pb-4 text-center">
         <CardTitle className="text-xl">Score Input</CardTitle>
         <CardDescription className="text-base">
@@ -182,24 +355,28 @@ export function MultiPlayerScoreInput({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Hole Details - Enhanced */}
-        <div className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-xl p-6 border-2">
-          <div className="flex items-center justify-between">
-            <div className="text-center flex-1">
-              <div className="text-4xl font-bold text-primary">Hole {currentHole + 1}</div>
-              <div className="text-sm text-muted-foreground mt-1">Current Hole</div>
-            </div>
-            <div className="text-center flex-1">
-              <div className="text-3xl font-bold text-green-600">Par {currentPar}</div>
-              <div className="text-sm text-muted-foreground mt-1">Target Score</div>
-            </div>
-            <div className="text-center flex-1">
-              <div className="text-3xl font-bold text-blue-600">
-                {currentDistance > 0 ? `${currentDistance}m` : 'N/A'}
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">Distance</div>
-            </div>
-          </div>
+        {/* Hole Map Visualization */}
+        <HoleMap
+          holeNumber={currentHole + 1}
+          par={currentPar}
+          distanceMeters={currentDistance}
+        />
+
+        {/* Hole Details - Badge Style */}
+        <div className="flex items-center justify-center gap-2 flex-wrap">          
+          <Badge variant="outline" className="px-4 py-2 text-base font-semibold border-2 border-green-500/30 bg-green-500/5">
+            <Target className="h-4 w-4 mr-1.5 text-green-600" />
+            <span className="text-green-600">Par {currentPar}</span>
+          </Badge>
+          
+          {currentDistance > 0 && (
+            <>
+              <Badge variant="outline" className="px-4 py-2 text-base font-semibold border-2 border-blue-500/30 bg-blue-500/5">
+                <Ruler className="h-4 w-4 mr-1.5 text-blue-600" />
+                <span className="text-blue-600">{currentDistance}m</span>
+              </Badge>
+            </>
+          )}
         </div>
 
         {/* Hole Navigation */}
@@ -269,22 +446,6 @@ export function MultiPlayerScoreInput({
           ))}
         </div>
 
-        {/* Round Progress */}
-        <div className="pt-4 border-t">
-          <div className="flex justify-between items-center text-sm">
-            <span>Progress: {currentHole + 1} / {totalHoles}</span>
-            <span className="text-muted-foreground">
-              {isRoundComplete() ? 'Round Complete!' : `${totalHoles - currentHole - 1} holes remaining`}
-            </span>
-          </div>
-          <div className="w-full bg-muted rounded-full h-2 mt-2">
-            <div 
-              className="bg-primary h-2 rounded-full transition-all duration-300"
-              style={{ width: `${((currentHole + 1) / totalHoles) * 100}%` }}
-            />
-          </div>
-        </div>
-
         {/* Round Status */}
         {isRoundComplete() && (
           <div className="pt-4 border-t">
@@ -310,5 +471,6 @@ export function MultiPlayerScoreInput({
         )}
       </CardContent>
     </Card>
+    </>
   );
 }

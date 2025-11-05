@@ -9,7 +9,6 @@ import { Progress } from '@/components/ui/progress';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { 
   Trophy, 
-  Target, 
   TrendingUp, 
   TrendingDown, 
   Star, 
@@ -22,6 +21,7 @@ import {
   Award,
   BarChart3
 } from 'lucide-react';
+import DgBasketIcon from '@/components/DgBasketIcon';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, use } from 'react';
@@ -290,7 +290,7 @@ export default function RoundDetailsPage({ params }: RoundDetailsPageProps) {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5" />
+                <DgBasketIcon className="h-5 w-5" size={20} />
                 Hole Performance
               </CardTitle>
               <CardDescription>
@@ -325,7 +325,7 @@ export default function RoundDetailsPage({ params }: RoundDetailsPageProps) {
 
                   <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-center">
                     <div className="flex items-center justify-center mb-2">
-                      <Target className="h-5 w-5 text-red-600 mr-2" />
+                      <DgBasketIcon className="h-5 w-5 text-red-600 mr-2" size={20} />
                       <span className="font-semibold text-red-800">Toughest Hole</span>
                     </div>
                     <div className="text-2xl font-bold text-red-700">
@@ -455,7 +455,7 @@ export default function RoundDetailsPage({ params }: RoundDetailsPageProps) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" />
+              <DgBasketIcon className="h-5 w-5" size={20} />
               Hole-by-Hole Breakdown
             </CardTitle>
             <CardDescription>

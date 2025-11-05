@@ -6,7 +6,8 @@ import { api } from '../../convex/_generated/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Heart, MapPin, Calendar, Target, Star, Clock, Ruler, Trophy, TrendingUp, Footprints, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
+import { Heart, MapPin, Calendar, Star, Clock, Ruler, Trophy, TrendingUp, Footprints, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
+import DgBasketIcon from '@/components/DgBasketIcon';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 interface CourseDetailsProps {
@@ -113,7 +114,7 @@ export function CourseDetails({ course, onStartGame, isExpanded }: CourseDetails
             <div className="grid grid-cols-3 gap-2">
               <div className="text-center p-2 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg border">
                 <div className="flex items-center justify-center mb-1">
-                  <Target className="h-3 w-3 text-primary" />
+                  <DgBasketIcon className="h-7 w-7 text-primary" size={100} />
                 </div>
                 <div className="text-sm font-bold text-primary">{course.holes}</div>
                 <div className="text-xs text-muted-foreground">Holes</div>
@@ -177,7 +178,7 @@ export function CourseDetails({ course, onStartGame, isExpanded }: CourseDetails
               <div className="border rounded-lg">
                 <div className="p-3 border-b">
                   <h4 className="flex items-center gap-2 text-base font-semibold">
-                    <Target className="h-4 w-4 text-primary" />
+                    <DgBasketIcon className="h-8 w-8 text-primary" size={100} />
                     Hole Details
                   </h4>
                   <p className="text-xs text-muted-foreground">

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Brain, Target, TrendingUp, TrendingDown, AlertCircle, CheckCircle, Lightbulb } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Brain, TrendingUp, TrendingDown, AlertCircle, CheckCircle, Lightbulb } from 'lucide-react';
+import DgBasketIcon from '@/components/DgBasketIcon';
 
 interface CaddyAssistantProps {
   currentHole: number;
@@ -24,7 +26,7 @@ export function CaddyAssistant({
 }: CaddyAssistantProps) {
   const [advice, setAdvice] = useState<string>("");
   const [adviceType, setAdviceType] = useState<'positive' | 'warning' | 'neutral' | 'motivational' | 'ace'>('neutral');
-  const [icon, setIcon] = useState<any>(Target);
+  const [icon, setIcon] = useState<any>(DgBasketIcon);
 
   useEffect(() => {
     generateAdvice();
@@ -82,7 +84,7 @@ export function CaddyAssistant({
       } else {
         setAdvice(`Round complete! You finished ${finalScoreToPar} over par. Good effort!`);
         setAdviceType('neutral');
-        setIcon(Target);
+        setIcon(DgBasketIcon);
       }
     } else if (currentScoreToPar <= -2) {
       setAdvice(`You're ${Math.abs(currentScoreToPar)} under par! Keep playing steady - don't get too aggressive.`);
@@ -118,11 +120,11 @@ export function CaddyAssistant({
     } else if (currentScoreToPar === 0) {
       setAdvice(`Perfect! You're right on par. Keep playing steady golf for the remaining ${holesRemaining} holes.`);
       setAdviceType('neutral');
-      setIcon(Target);
+      setIcon(DgBasketIcon);
     } else if (currentScoreToPar === 1) {
       setAdvice(`You're 1 over par. A birdie on this ${currentHolePar}-par hole would bring you back to even.`);
       setAdviceType('neutral');
-      setIcon(Target);
+      setIcon(DgBasketIcon);
     } else if (currentScoreToPar === -1) {
       setAdvice(`You're 1 under par. A par on this ${currentHolePar}-par hole will maintain your lead.`);
       setAdviceType('positive');
@@ -191,7 +193,7 @@ export function CaddyAssistant({
         </CardHeader>
         <CardContent className="pt-0">
           <div className="flex items-start gap-3">
-            <Target className="h-5 w-5 mt-0.5 flex-shrink-0 text-red-600" />
+            <DgBasketIcon className="h-5 w-5 mt-0.5 flex-shrink-0 text-red-600" size={20} />
             <p className="text-sm leading-relaxed">
               Missing data: courseHoles={!!courseHoles}, scores={!!scores}
             </p>
@@ -201,52 +203,34 @@ export function CaddyAssistant({
     );
   }
 
-  const IconComponent = icon;
+  const IconComponent = typeof icon === 'function' ? icon : DgBasketIcon;
 
   return (
     <Card className={`border-2 ${getAdviceColor()} transition-all duration-300`}>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-sm">
+      <CardHeader className="pb-1">
+        <CardTitle className="flex items-center gap-1 text-sm">
           <Brain className="h-4 w-4 text-purple-600" />
           Caddy Assistant
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="flex items-start gap-3">
-          <IconComponent className={`h-5 w-5 mt-0.5 flex-shrink-0 ${getIconColor()}`} />
+        <div className="flex items-start gap-1">
+          {React.createElement(IconComponent, { className: `h-5 w-5 mt-0.5 flex-shrink-0 ${getIconColor()}` })}
           <p className="text-sm leading-relaxed">{advice || "Welcome to the course! Start strong and stay focused. You've got this! 🎯"}</p>
         </div>
         
-        {/* Quick Stats */}
+        {/* Round Progress */}
         <div className="mt-3 pt-3 border-t border-gray-200">
-          <div className="grid grid-cols-3 gap-2 text-xs">
-            <div className="text-center">
-              <div className="font-semibold">{currentScore}</div>
-              <div className="text-muted-foreground">Total</div>
-            </div>
-            <div className="text-center">
-              <div className="font-semibold">{totalHoles - Math.max(0, currentHole - 1)}</div>
-              <div className="text-muted-foreground">Left</div>
-            </div>
-            <div className="text-center">
-              <div className={`font-semibold ${
-                (() => {
-                  const holesPlayed = Math.max(0, currentHole - 1);
-                  const playedHolesPar = courseHoles.slice(0, holesPlayed).reduce((sum, hole) => sum + hole.par, 0);
-                  const scoreToPar = currentScore - playedHolesPar;
-                  return scoreToPar < 0 ? 'text-green-600' : scoreToPar > 0 ? 'text-red-600' : 'text-blue-600';
-                })()
-              }`}>
-                {(() => {
-                  const holesPlayed = Math.max(0, currentHole - 1);
-                  const playedHolesPar = courseHoles.slice(0, holesPlayed).reduce((sum, hole) => sum + hole.par, 0);
-                  const scoreToPar = currentScore - playedHolesPar;
-                  return scoreToPar < 0 ? `${scoreToPar}` : scoreToPar > 0 ? `+${scoreToPar}` : 'E';
-                })()}
-              </div>
-              <div className="text-muted-foreground">To Par</div>
-            </div>
+          <div className="flex justify-between items-center text-xs mb-2">
+            <span className="text-muted-foreground">Round Progress</span>
+            <span className="font-semibold">
+              {Math.min(currentHole, totalHoles)} / {totalHoles} holes
+            </span>
           </div>
+          <Progress 
+            value={(Math.min(currentHole, totalHoles) / totalHoles) * 100} 
+            className="h-2"
+          />
         </div>
       </CardContent>
     </Card>
