@@ -307,10 +307,16 @@ export const create = mutation({
       .withIndex("by_course", (q) => q.eq("courseId", args.courseId))
       .collect();
     const totalPar = courseHoles.reduce((sum, h) => sum + (h.par || 0), 0);
+    
+    // Calculate PDGA rating if applicable
+    const { calculateRating } = await import("./pdgaRating");
+    const rating = await calculateRating(ctx, args.courseId, totalStrokes);
+    
     await ctx.db.patch(roundId, {
       totalStrokes,
       totalPar,
       relativeToPar: totalPar > 0 ? totalStrokes - totalPar : undefined,
+      rating: rating || undefined,
     });
 
 

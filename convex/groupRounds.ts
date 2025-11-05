@@ -53,6 +53,10 @@ export const createGroupRound = mutation({
         .collect();
       const totalPar = courseHoles.reduce((sum, h) => sum + (h.par || 0), 0);
       
+      // Calculate PDGA rating if applicable
+      const { calculateRating } = await import("./pdgaRating");
+      const rating = await calculateRating(ctx, args.courseId, totalStrokes);
+      
       // Create the round
       const roundId = await ctx.db.insert("rounds", {
         userId: participant.userId || args.userId, // Use main user if guest
@@ -62,6 +66,7 @@ export const createGroupRound = mutation({
         totalStrokes,
         totalPar,
         relativeToPar: totalPar > 0 ? totalStrokes - totalPar : undefined,
+        rating: rating || undefined,
         roundType: args.roundType,
         notes: args.notes,
         shared: false,
