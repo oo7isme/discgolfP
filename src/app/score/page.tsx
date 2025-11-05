@@ -11,7 +11,8 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { CaddyAssistant } from '@/components/CaddyAssistant';
 import { MultiPlayerScoreInput } from '@/components/MultiPlayerScoreInput';
 import { RoundRecap } from '@/components/RoundRecap';
-import { ArrowLeft, Target, MapPin, Clock, Users } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, Users } from 'lucide-react';
+import DgBasketIcon from '@/components/DgBasketIcon';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 interface Participant {

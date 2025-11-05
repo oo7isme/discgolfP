@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, MapPin, Target } from "lucide-react";
+import { Plus, Trash2, MapPin } from "lucide-react";
+import DgBasketIcon from '@/components/DgBasketIcon';
 
 interface CourseHole {
   hole: number;
@@ -234,7 +235,7 @@ export function CourseCreationForm({ onSuccess }: { onSuccess?: () => void }) {
           {formData.courseHoles.length > 0 && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <Target className="h-5 w-5" />
+                <DgBasketIcon className="h-5 w-5" size={20} />
                 <h3 className="text-lg font-semibold">Hole Details</h3>
               </div>
               

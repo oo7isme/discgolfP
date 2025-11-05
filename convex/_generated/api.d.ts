@@ -14,6 +14,7 @@ import type * as favoriteCourses from "../favoriteCourses.js";
 import type * as friends from "../friends.js";
 import type * as goals from "../goals.js";
 import type * as groupRounds from "../groupRounds.js";
+import type * as pdgaRating from "../pdgaRating.js";
 import type * as rounds from "../rounds.js";
 import type * as seed from "../seed.js";
 import type * as stats from "../stats.js";
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   friends: typeof friends;
   goals: typeof goals;
   groupRounds: typeof groupRounds;
+  pdgaRating: typeof pdgaRating;
   rounds: typeof rounds;
   seed: typeof seed;
   stats: typeof stats;

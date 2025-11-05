@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { CourseCreationForm } from "@/components/CourseCreationForm";
 import { CourseImportForm } from "@/components/CourseImportForm";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { Plus, Search, MapPin, Target, Users, Calendar, Upload } from "lucide-react";
+import { Plus, Search, MapPin, Users, Calendar, Upload } from "lucide-react";
+import DgBasketIcon from '@/components/DgBasketIcon';
 
 export default function CourseManagementPage() {
   const { user, currentUser } = useCurrentUser();
@@ -116,7 +117,7 @@ export default function CourseManagementPage() {
         {filteredCourses.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center">
-              <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <DgBasketIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" size={48} />
               <h3 className="text-lg font-semibold mb-2">No courses found</h3>
               <p className="text-muted-foreground mb-4">
                 {searchQuery ? "Try adjusting your search terms." : "No courses have been added yet."}
@@ -158,7 +159,7 @@ export default function CourseManagementPage() {
                   
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
-                      <Target className="h-3 w-3" />
+                      <DgBasketIcon className="h-3 w-3" size={12} />
                       {course.holes} holes
                     </div>
                     {course.estimatedLengthMeters && (

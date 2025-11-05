@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { MapPin, Target, Clock, TrendingUp, RefreshCw } from 'lucide-react';
+import { MapPin, Clock, TrendingUp, RefreshCw } from 'lucide-react';
+import DgBasketIcon from '@/components/DgBasketIcon';
 
 export default function UpdateStovnerCoursePage() {
   const [isUpdating, setIsUpdating] = useState(false);
@@ -153,7 +154,7 @@ export default function UpdateStovnerCoursePage() {
           {result && (
             <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
               <div className="flex items-center gap-2 text-green-800">
-                <Target className="h-4 w-4" />
+                <DgBasketIcon className="h-4 w-4" size={16} />
                 <span className="font-medium">Course Updated Successfully!</span>
               </div>
               <div className="mt-2 text-sm text-green-700">

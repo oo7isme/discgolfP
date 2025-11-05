@@ -74,6 +74,14 @@ export default function StatsPage() {
   const totalRounds = filteredRounds.length;
   const totalStrokes = filteredRounds.reduce((sum, round) => sum + (round.totalStrokes || 0), 0);
   const averageScore = totalRounds > 0 ? (totalStrokes / totalRounds).toFixed(1) : '0';
+  
+  // Calculate average PDGA rating (only for rounds with ratings)
+  const roundsWithRatings = filteredRounds.filter(round => round.rating !== undefined && round.rating !== null);
+  const totalRatings = roundsWithRatings.reduce((sum, round) => sum + (round.rating || 0), 0);
+  const averageRating = roundsWithRatings.length > 0 
+    ? Math.round(totalRatings / roundsWithRatings.length).toString()
+    : 'N/A';
+  
   const bestScore = filteredRounds.length > 0 
     ? Math.min(...filteredRounds.map(round => round.totalStrokes || Infinity))
     : 0;
@@ -204,8 +212,13 @@ export default function StatsPage() {
             </div>
             
             <div className="text-center">
-              <div className="text-3xl font-bold text-primary">{averageScore}</div>
-              <div className="text-sm text-muted-foreground mt-1">Average Score</div>
+              <div className="text-3xl font-bold text-primary">{averageRating}</div>
+              <div className="text-sm text-muted-foreground mt-1">Average PDGA Rating</div>
+              {roundsWithRatings.length < totalRounds && (
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  ({roundsWithRatings.length} of {totalRounds} rounds)
+                </div>
+              )}
             </div>
             
             <div className="text-center">
