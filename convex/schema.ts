@@ -34,6 +34,10 @@ export default defineSchema({
     hole: v.number(),
     par: v.number(),
     distanceMeters: v.optional(v.number()),
+    teeLat: v.optional(v.number()),
+    teeLon: v.optional(v.number()),
+    basketLat: v.optional(v.number()),
+    basketLon: v.optional(v.number()),
   })
     .index("by_course", ["courseId"])
     .index("by_course_hole", ["courseId", "hole"]),
@@ -265,6 +269,17 @@ export default defineSchema({
     showRecentActivity: v.boolean(),
     updatedAt: v.number(),
   })
+    .index("by_user", ["userId"]),
+
+  baskets: defineTable({
+    courseId: v.id("courses"),
+    holeNumber: v.number(),
+    lat: v.number(),
+    lon: v.number(),
+    userId: v.id("users"),
+    updatedAt: v.number(),
+  })
+    .index("by_course_hole", ["courseId", "holeNumber"])
     .index("by_user", ["userId"]),
 });
 

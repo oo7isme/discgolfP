@@ -248,34 +248,38 @@ function ScorePageContent() {
         </div>
       </div>
 
-      {/* Main Content - Centered Score Input */}
-      <div className="flex-1 flex flex-col items-center justify-center p-4 space-y-4">
-        {/* Caddy Assistant */}
-        {courseHoles && scores['you'] && (
-          <div className="w-full max-w-md">
-            <CaddyAssistant
-              currentHole={currentHole}
-              totalHoles={courseHoles.length}
-              currentScore={Object.values(scores['you']).slice(0, currentHole - 1).reduce((sum, score) => sum + score, 0)}
-              coursePar={courseHoles.reduce((sum, hole) => sum + hole.par, 0)}
-              scores={scores['you']}
-              courseHoles={courseHoles}
-            />
-          </div>
-        )}
-        
-        {/* Score Input */}
-        {courseHoles && (
-          <div className="w-full max-w-md">
-            <MultiPlayerScoreInput 
-              courseHoles={courseHoles}
-              participants={participants}
-              onScoresChange={setScores}
-              onRoundComplete={handleRoundComplete}
-              onCurrentHoleChange={setCurrentHole}
-            />
-          </div>
-        )}
+      {/* Main Content - Combined Score and Map */}
+      <div className="flex-1 flex flex-col overflow-y-auto">
+        <div className="flex flex-col items-center justify-center p-4 space-y-4 min-h-full">
+          {/* Caddy Assistant */}
+          {courseHoles && scores['you'] && (
+            <div className="w-full max-w-2xl">
+              <CaddyAssistant
+                currentHole={currentHole}
+                totalHoles={courseHoles.length}
+                currentScore={Object.values(scores['you']).slice(0, currentHole - 1).reduce((sum, score) => sum + score, 0)}
+                coursePar={courseHoles.reduce((sum, hole) => sum + hole.par, 0)}
+                scores={scores['you']}
+                courseHoles={courseHoles}
+              />
+            </div>
+          )}
+          
+          {/* Score Input with Integrated Map */}
+          {courseHoles && (
+            <div className="w-full max-w-2xl">
+              <MultiPlayerScoreInput 
+                courseHoles={courseHoles}
+                courseId={courseId || undefined}
+                participants={participants}
+                onScoresChange={setScores}
+                onRoundComplete={handleRoundComplete}
+                onCurrentHoleChange={setCurrentHole}
+                initialCurrentHole={currentHole}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Bottom Section - Status and Save Button */}

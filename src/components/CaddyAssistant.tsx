@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -16,7 +16,7 @@ interface CaddyAssistantProps {
   courseHoles: Array<{ hole: number; par: number; distanceMeters?: number }>;
 }
 
-export function CaddyAssistant({ 
+function CaddyAssistantComponent({ 
   currentHole, 
   totalHoles, 
   currentScore, 
@@ -28,11 +28,91 @@ export function CaddyAssistant({
   const [adviceType, setAdviceType] = useState<'positive' | 'warning' | 'neutral' | 'motivational' | 'ace'>('neutral');
   const [icon, setIcon] = useState<any>(DgBasketIcon);
 
-  useEffect(() => {
-    generateAdvice();
-  }, [currentHole, currentScore, coursePar, scores]);
+  // Use refs to track the last processed values to prevent infinite loops
+  const lastProcessedRef = useRef<number | null>(null);
+  const adviceRef = useRef<string>(advice);
+  const adviceTypeRef = useRef<'positive' | 'warning' | 'neutral' | 'motivational' | 'ace'>(adviceType);
+  const iconRef = useRef<any>(icon);
+  const courseHolesRef = useRef(courseHoles);
+  const scoresRef = useRef(scores);
 
-  const generateAdvice = () => {
+  // Keep refs in sync with state (only state, not props to avoid dependency issues)
+  useEffect(() => {
+    adviceRef.current = advice;
+    adviceTypeRef.current = adviceType;
+    iconRef.current = icon;
+  }, [advice, adviceType, icon]);
+
+  // Keep prop refs in sync separately to avoid dependency array size issues
+  useEffect(() => {
+    courseHolesRef.current = courseHoles;
+    scoresRef.current = scores;
+  }, [courseHoles, scores]);
+
+
+  // Memoize scores and courseHoles strings to avoid infinite loops from object reference changes
+  // Only update when the actual content changes, not just the reference
+  const scoresString = useMemo(() => {
+    if (!scores) return '';
+    try {
+      const sorted = Object.keys(scores).sort((a, b) => Number(a) - Number(b));
+      return sorted.map(k => `${k}:${scores[k]}`).join(',');
+    } catch {
+      return '';
+    }
+  }, [scores]);
+  
+  const courseHolesString = useMemo(() => {
+    if (!courseHoles || courseHoles.length === 0) return '';
+    try {
+      return courseHoles.map(h => `${h.hole}:${h.par}`).join(',');
+    } catch {
+      return '';
+    }
+  }, [courseHoles]);
+
+  // Create a unique numeric ID for the current state (memoized to prevent unnecessary recalculations)
+  // This key should ONLY depend on input props, never on internal state
+  // Using a numeric ID instead of string to avoid React dependency array parsing issues
+  const stateKeyId = useMemo(() => {
+    // Create a hash-like numeric ID from the state values
+    const safeScores = scoresString || '';
+    const safeHoles = courseHolesString || '';
+    // Simple hash function to create a numeric ID
+    const hash = (str: string) => {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+      }
+      return hash;
+    };
+    const combined = `${currentHole}-${currentScore}-${coursePar}-${totalHoles}-${safeScores}-${safeHoles}`;
+    return hash(combined);
+  }, [currentHole, currentScore, coursePar, totalHoles, scoresString, courseHolesString]);
+
+  useEffect(() => {
+    // Early return if we don't have the necessary data
+    // Use refs to access courseHoles and scores to avoid dependency issues
+    const currentCourseHoles = courseHolesRef.current;
+    const currentScores = scoresRef.current;
+    
+    if (!currentCourseHoles || !currentCourseHoles.length) {
+      return;
+    }
+
+    // Skip if we've already processed this exact state
+    if (lastProcessedRef.current === stateKeyId) {
+      return;
+    }
+
+    // Batch all state updates together to prevent multiple re-renders
+    let newAdvice = "";
+    let newAdviceType: 'positive' | 'warning' | 'neutral' | 'motivational' | 'ace' = 'neutral';
+    let newIcon: any = DgBasketIcon;
+    
+    // Calculate advice directly in useEffect (no nested function)
     // Count only holes that have been actually played (not just pre-filled with par)
     // We'll use the currentHole prop which represents the actual hole being played
     const holesPlayed = Math.max(0, currentHole - 1);
@@ -40,98 +120,90 @@ export function CaddyAssistant({
     
     // Calculate current score to par more accurately
     // We need to sum the par for holes 1 through holesPlayed (1-based)
-    const playedHolesPar = courseHoles.slice(0, holesPlayed).reduce((sum, hole) => sum + hole.par, 0);
+    const playedHolesPar = currentCourseHoles.slice(0, holesPlayed).reduce((sum, hole) => sum + hole.par, 0);
     const currentScoreToPar = currentScore - playedHolesPar;
     
     const averagePerHole = holesPlayed > 0 ? currentScore / holesPlayed : 0;
     
     // Get current hole par (next hole to be played)
-    const currentHolePar = courseHoles[currentHole - 1]?.par || 3;
+    const currentHolePar = currentCourseHoles[currentHole - 1]?.par || 3;
     
-    // Calculate what you need to shoot to maintain/improve position
-    const remainingPar = courseHoles.slice(holesPlayed).reduce((sum, hole) => sum + hole.par, 0);
-    const targetScore = Math.ceil(coursePar / totalHoles * holesRemaining);
-    const scoreNeeded = Math.max(1, targetScore - currentScore);
-
     // Recent performance analysis - only use actually played holes
-    const playedScores = Object.values(scores).slice(0, holesPlayed);
+    const playedScores = Object.values(currentScores || {}).slice(0, holesPlayed);
     const recentScores = playedScores.slice(-3);
     const recentAverage = recentScores.length > 0 ? recentScores.reduce((a, b) => a + b, 0) / recentScores.length : 0;
     const isImproving = recentScores.length >= 2 && recentScores[recentScores.length - 1] < recentScores[recentScores.length - 2];
 
     // Check for ace (hole-in-one) on current hole
-    const currentHoleScore = scores[currentHole - 1] || 0;
-    const aceHolePar = courseHoles[currentHole - 1]?.par || 3;
+    const currentHoleScore = (currentScores || {})[currentHole - 1] || 0;
+    const aceHolePar = currentCourseHoles[currentHole - 1]?.par || 3;
     
     if (currentHoleScore === 1 && aceHolePar > 1) {
-      setAdvice(`🎉 ACE! HOLE-IN-ONE! 🎉 Incredible shot on this ${aceHolePar}-par hole!`);
-      setAdviceType('ace');
-      setIcon(CheckCircle);
-      return;
-    }
-
-    // Generate contextual advice
-    if (holesPlayed === 0) {
-      setAdvice("Start strong! Focus on hitting par on this first hole to build confidence.");
-      setAdviceType('motivational');
-      setIcon(Lightbulb);
+      newAdvice = `🎉 ACE! HOLE-IN-ONE! 🎉 Incredible shot on this ${aceHolePar}-par hole!`;
+      newAdviceType = 'ace';
+      newIcon = CheckCircle;
+    } else if (holesPlayed === 0) {
+      // Generate contextual advice
+      newAdvice = "Start strong! Focus on hitting par on this first hole to build confidence.";
+      newAdviceType = 'motivational';
+      newIcon = Lightbulb;
     } else if (holesRemaining === 0) {
       const finalScoreToPar = currentScore - coursePar;
       if (finalScoreToPar <= 0) {
-        setAdvice(`Excellent round! You finished ${Math.abs(finalScoreToPar)} under par. Well played!`);
-        setAdviceType('positive');
-        setIcon(CheckCircle);
+        newAdvice = `Excellent round! You finished ${Math.abs(finalScoreToPar)} under par. Well played!`;
+        newAdviceType = 'positive';
+        newIcon = CheckCircle;
       } else {
-        setAdvice(`Round complete! You finished ${finalScoreToPar} over par. Good effort!`);
-        setAdviceType('neutral');
-        setIcon(DgBasketIcon);
+        newAdvice = `Round complete! You finished ${finalScoreToPar} over par. Good effort!`;
+        newAdviceType = 'neutral';
+        newIcon = DgBasketIcon;
       }
     } else if (currentScoreToPar <= -2) {
-      setAdvice(`You're ${Math.abs(currentScoreToPar)} under par! Keep playing steady - don't get too aggressive.`);
-      setAdviceType('positive');
-      setIcon(TrendingUp);
+      newAdvice = `You're ${Math.abs(currentScoreToPar)} under par! Keep playing steady - don't get too aggressive.`;
+      newAdviceType = 'positive';
+      newIcon = TrendingUp;
     } else if (currentScoreToPar >= 5) {
-      setAdvice(`You're ${currentScoreToPar} over par. Focus on making pars - avoid big numbers.`);
-      setAdviceType('warning');
-      setIcon(AlertCircle);
+      newAdvice = `You're ${currentScoreToPar} over par. Focus on making pars - avoid big numbers.`;
+      newAdviceType = 'warning';
+      newIcon = AlertCircle;
     } else if (holesRemaining <= 3) {
       if (currentScoreToPar === 0) {
-        setAdvice(`Final holes! You're at even par. Make pars on these last ${holesRemaining} holes to finish even.`);
+        newAdvice = `Final holes! You're at even par. Make pars on these last ${holesRemaining} holes to finish even.`;
       } else if (currentScoreToPar < 0) {
-        setAdvice(`Final stretch! You're ${Math.abs(currentScoreToPar)} under par. Keep making pars to maintain your lead.`);
+        newAdvice = `Final stretch! You're ${Math.abs(currentScoreToPar)} under par. Keep making pars to maintain your lead.`;
       } else {
         const targetPerHole = Math.ceil((currentScoreToPar + holesRemaining) / holesRemaining);
         if (targetPerHole <= currentHolePar) {
-          setAdvice(`Final stretch! You need to average ${targetPerHole} strokes per hole to finish under par.`);
+          newAdvice = `Final stretch! You need to average ${targetPerHole} strokes per hole to finish under par.`;
         } else {
-          setAdvice(`Final holes! Try to make pars on these last ${holesRemaining} holes.`);
+          newAdvice = `Final holes! Try to make pars on these last ${holesRemaining} holes.`;
         }
       }
-      setAdviceType('warning');
-      setIcon(AlertCircle);
+      newAdviceType = 'warning';
+      newIcon = AlertCircle;
     } else if (isImproving && recentAverage < currentHolePar) {
-      setAdvice(`Great improvement! Your recent holes are trending better. Keep this momentum on this ${currentHolePar}-par hole.`);
-      setAdviceType('positive');
-      setIcon(TrendingUp);
+      newAdvice = `Great improvement! Your recent holes are trending better. Keep this momentum on this ${currentHolePar}-par hole.`;
+      newAdviceType = 'positive';
+      newIcon = TrendingUp;
     } else if (averagePerHole > currentHolePar + 1) {
-      setAdvice(`You're averaging ${averagePerHole.toFixed(1)} strokes per hole. Focus on making par on this ${currentHolePar}-par hole.`);
-      setAdviceType('warning');
-      setIcon(AlertCircle);
+      newAdvice = `You're averaging ${averagePerHole.toFixed(1)} strokes per hole. Focus on making par on this ${currentHolePar}-par hole.`;
+      newAdviceType = 'warning';
+      newIcon = AlertCircle;
     } else if (currentScoreToPar === 0) {
-      setAdvice(`Perfect! You're right on par. Keep playing steady golf for the remaining ${holesRemaining} holes.`);
-      setAdviceType('neutral');
-      setIcon(DgBasketIcon);
+      newAdvice = `Perfect! You're right on par. Keep playing steady golf for the remaining ${holesRemaining} holes.`;
+      newAdviceType = 'neutral';
+      newIcon = DgBasketIcon;
     } else if (currentScoreToPar === 1) {
-      setAdvice(`You're 1 over par. A birdie on this ${currentHolePar}-par hole would bring you back to even.`);
-      setAdviceType('neutral');
-      setIcon(DgBasketIcon);
+      newAdvice = `You're 1 over par. A birdie on this ${currentHolePar}-par hole would bring you back to even.`;
+      newAdviceType = 'neutral';
+      newIcon = DgBasketIcon;
     } else if (currentScoreToPar === -1) {
-      setAdvice(`You're 1 under par. A par on this ${currentHolePar}-par hole will maintain your lead.`);
-      setAdviceType('positive');
-      setIcon(TrendingUp);
+      newAdvice = `You're 1 under par. A par on this ${currentHolePar}-par hole will maintain your lead.`;
+      newAdviceType = 'positive';
+      newIcon = TrendingUp;
     } else if (currentScoreToPar > 0) {
       // Add specific advice based on hole characteristics
-      const currentHoleData = courseHoles[currentHole - 1];
+      const currentHoleData = currentCourseHoles[currentHole - 1];
       const distance = currentHoleData?.distanceMeters || 0;
       
       let specificAdvice = "";
@@ -151,15 +223,35 @@ export function CaddyAssistant({
         specificAdvice = "Par 5 - take your time and avoid big mistakes.";
       }
       
-      setAdvice(`You're ${currentScoreToPar} over par. ${specificAdvice}`);
-      setAdviceType('warning');
-      setIcon(AlertCircle);
+      newAdvice = `You're ${currentScoreToPar} over par. ${specificAdvice}`;
+      newAdviceType = 'warning';
+      newIcon = AlertCircle;
     } else {
-      setAdvice(`You're ${Math.abs(currentScoreToPar)} under par. Keep playing steady golf.`);
-      setAdviceType('positive');
-      setIcon(TrendingUp);
+      newAdvice = `You're ${Math.abs(currentScoreToPar)} under par. Keep playing steady golf.`;
+      newAdviceType = 'positive';
+      newIcon = TrendingUp;
     }
-  };
+    
+    // Only update state if values actually changed to prevent unnecessary re-renders
+    // This check prevents the infinite loop by ensuring we don't update state with the same values
+    // Use refs to check current values without adding them to the dependency array
+    if (adviceRef.current === newAdvice && adviceTypeRef.current === newAdviceType && iconRef.current === newIcon) {
+      // Values haven't changed, just mark as processed and return
+      lastProcessedRef.current = stateKeyId;
+      return;
+    }
+    
+    // Mark this state as processed BEFORE state updates to prevent re-triggering
+    lastProcessedRef.current = stateKeyId;
+    
+    // Use React.startTransition to batch state updates and prevent synchronous re-renders
+    // This ensures the effect won't re-trigger immediately after state updates
+    React.startTransition(() => {
+      setAdvice(newAdvice);
+      setAdviceType(newAdviceType);
+      setIcon(newIcon);
+    });
+  }, [stateKeyId]);
 
   const getAdviceColor = () => {
     switch (adviceType) {
@@ -236,3 +328,25 @@ export function CaddyAssistant({
     </Card>
   );
 }
+
+// Memoize the component to prevent unnecessary re-renders when props haven't changed
+export const CaddyAssistant = React.memo(CaddyAssistantComponent, (prevProps, nextProps) => {
+  // Custom comparison function - only re-render if actual values changed
+  if (prevProps.currentHole !== nextProps.currentHole) return false;
+  if (prevProps.totalHoles !== nextProps.totalHoles) return false;
+  if (prevProps.currentScore !== nextProps.currentScore) return false;
+  if (prevProps.coursePar !== nextProps.coursePar) return false;
+  
+  // Compare scores objects
+  const prevScoresStr = JSON.stringify(prevProps.scores || {});
+  const nextScoresStr = JSON.stringify(nextProps.scores || {});
+  if (prevScoresStr !== nextScoresStr) return false;
+  
+  // Compare courseHoles arrays
+  const prevHolesStr = JSON.stringify((prevProps.courseHoles || []).map(h => ({ hole: h.hole, par: h.par })));
+  const nextHolesStr = JSON.stringify((nextProps.courseHoles || []).map(h => ({ hole: h.hole, par: h.par })));
+  if (prevHolesStr !== nextHolesStr) return false;
+  
+  // Props are equal, skip re-render
+  return true;
+});

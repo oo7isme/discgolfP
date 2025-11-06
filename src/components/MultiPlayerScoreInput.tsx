@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, UserPlus, Plus, Minus, Target, Ruler, Trophy, TrendingUp } from 'lucide-react';
-import { HoleMap } from '@/components/HoleMap';
+import { User, UserPlus, Plus, Minus, Target, Ruler, Trophy, TrendingUp, Navigation } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import DiscGolfMapWrapper from '@/components/DiscGolfMapWrapper';
 
 interface Participant {
   id: string;
@@ -26,19 +26,50 @@ interface ScoreData {
 interface MultiPlayerScoreInputProps {
   participants: Participant[];
   courseHoles: any[];
+  courseId?: string; // Add courseId prop for the map
   onScoresChange: (scores: ScoreData) => void;
   onRoundComplete?: (isComplete: boolean) => void;
   onCurrentHoleChange?: (currentHole: number) => void;
+  initialCurrentHole?: number; // 1-based hole number from parent
 }
 
 export function MultiPlayerScoreInput({ 
   participants, 
   courseHoles, 
+  courseId,
   onScoresChange,
   onRoundComplete,
-  onCurrentHoleChange
+  onCurrentHoleChange,
+  initialCurrentHole = 1
 }: MultiPlayerScoreInputProps) {
-  const [currentHole, setCurrentHole] = useState(0);
+  // Convert 1-based initialCurrentHole to 0-based index
+  const [currentHole, setCurrentHole] = useState(initialCurrentHole - 1);
+  
+  // Use refs to track callbacks to avoid dependency issues
+  const onCurrentHoleChangeRef = useRef(onCurrentHoleChange);
+  const onRoundCompleteRef = useRef(onRoundComplete);
+  
+  // Keep refs in sync with props
+  useEffect(() => {
+    onCurrentHoleChangeRef.current = onCurrentHoleChange;
+    onRoundCompleteRef.current = onRoundComplete;
+  }, [onCurrentHoleChange, onRoundComplete]);
+  
+  // Sync with parent's currentHole when it changes
+  // Only depend on initialCurrentHole and courseHoles, not currentHole itself
+  useEffect(() => {
+    const newHole = initialCurrentHole - 1;
+    const maxHoles = courseHoles?.length || 18;
+    if (newHole >= 0 && newHole < maxHoles) {
+      setCurrentHole(prevHole => {
+        // Only update if actually different
+        if (prevHole !== newHole) {
+          return newHole;
+        }
+        return prevHole;
+      });
+    }
+  }, [initialCurrentHole, courseHoles]);
   const [showHalfwayReview, setShowHalfwayReview] = useState(false);
   const [hasShownHalfwayReview, setHasShownHalfwayReview] = useState(false);
   const [scores, setScores] = useState<ScoreData>(() => {
@@ -62,10 +93,10 @@ export function MultiPlayerScoreInput({
   const currentPar = courseHoles?.find(h => h.hole === currentHole + 1)?.par || 3;
   const totalHoles = courseHoles?.length || 18;
 
-  // Notify parent of current hole changes
+  // Notify parent of current hole changes (use ref to avoid dependency issues)
   useEffect(() => {
-    onCurrentHoleChange?.(currentHole + 1); // Convert to 1-based for parent
-  }, [currentHole, onCurrentHoleChange]);
+    onCurrentHoleChangeRef.current?.(currentHole + 1); // Convert to 1-based for parent
+  }, [currentHole]);
 
   const handleScoreChange = (participantId: string, hole: number, newScore: number) => {
     const newScores = {
@@ -134,13 +165,14 @@ export function MultiPlayerScoreInput({
   // For solo play, we still show the scoring interface
   const isSoloPlay = participants.length === 0;
 
-  // Notify parent when round completion status changes
+  // Notify parent when round completion status changes (use ref to avoid dependency issues)
   useEffect(() => {
-    if (onRoundComplete) {
-      const isComplete = canFinishRound();
-      onRoundComplete(isComplete);
+    if (onRoundCompleteRef.current) {
+      // Calculate completion status directly in the effect
+      const isComplete = currentHole === totalHoles - 1;
+      onRoundCompleteRef.current(isComplete);
     }
-  }, [currentHole, onRoundComplete]);
+  }, [currentHole, totalHoles]);
 
   // Score input component with plus/minus buttons
   const ScoreInput = ({ participantId, hole, label }: { participantId: string; hole: number; label: string }) => {
@@ -188,6 +220,179 @@ export function MultiPlayerScoreInput({
 
   const currentHoleData = courseHoles?.find(h => h.hole === currentHole + 1);
   const currentDistance = currentHoleData?.distanceMeters || 0;
+  
+  // User location tracking for distance to basket
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+  const [locationPermissionAsked, setLocationPermissionAsked] = useState(false);
+  
+  const basketLocation = useMemo(() => {
+    if (!currentHoleData?.basketLat || !currentHoleData?.basketLon) return null;
+    return { lat: currentHoleData.basketLat, lon: currentHoleData.basketLon };
+  }, [currentHoleData]);
+
+  // Calculate distance from user to basket (Haversine formula)
+  const userToBasketDistance = useMemo(() => {
+    if (!userLocation || !basketLocation) return null;
+    const R = 6371000; // Earth's radius in meters
+    const dLat = ((basketLocation.lat - userLocation.lat) * Math.PI) / 180;
+    const dLon = ((basketLocation.lon - userLocation.lon) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((userLocation.lat * Math.PI) / 180) *
+        Math.cos((basketLocation.lat * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }, [userLocation, basketLocation]);
+
+  // Track location watch ID for cleanup
+  const watchIdRef = useRef<number | null>(null);
+
+  const startLocationTracking = useCallback(() => {
+    if (typeof window === "undefined" || !navigator.geolocation) return;
+
+    // Clear any existing watch
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+    }
+
+    // Mobile-friendly options: longer timeout, allow cached positions
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const options: PositionOptions = {
+      enableHighAccuracy: true,
+      timeout: isMobile ? 20000 : 15000, // Even longer timeout for mobile (20s)
+      maximumAge: isMobile ? 10000 : 5000, // Allow older cached positions on mobile (10s)
+    };
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation({ lat: latitude, lon: longitude });
+      },
+      (error) => {
+        // Handle geolocation errors gracefully
+        // Check if error object has the expected structure
+        if (error && typeof error === 'object' && 'code' in error) {
+          const errorCode = error.code as number;
+          // Only log if it's not a permission denied error (user might have denied in browser)
+          if (errorCode !== 1) { // 1 = PERMISSION_DENIED
+            // Log other errors (timeout, unavailable, etc.) for debugging
+            const errorMessages: { [key: number]: string } = {
+              1: 'Permission denied',
+              2: 'Position unavailable',
+              3: 'Timeout',
+            };
+            const errorMessage = errorMessages[errorCode] || 'Unknown error';
+            // Don't spam console with timeout errors - they're common on mobile
+            if (errorCode !== 3) {
+              console.warn(`Geolocation ${errorMessage}:`, error.message || 'No error message');
+            }
+          }
+        }
+        // Silently fail for permission denied or malformed errors
+        // User can enable location via the "Enable Location" button
+      },
+      options
+    );
+  }, []);
+
+  // Check if we've asked for location permission before and start tracking if granted
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const locationPreference = localStorage.getItem('locationPermission');
+    if (locationPreference === 'granted') {
+      // User previously granted permission, start tracking immediately
+      startLocationTracking();
+      setLocationPermissionAsked(true);
+    } else if (locationPreference === 'denied') {
+      // User previously denied, don't ask again
+      setLocationPermissionAsked(true);
+    } else {
+      // Haven't asked before, show prompt
+      setShowLocationPrompt(true);
+      setLocationPermissionAsked(true);
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (watchIdRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, [startLocationTracking]);
+
+  const handleLocationPermission = async (granted: boolean) => {
+    setShowLocationPrompt(false);
+    if (granted) {
+      // Check if we're on a secure origin (HTTPS or localhost)
+      const isSecureOrigin = typeof window !== "undefined" && 
+        (window.location.protocol === "https:" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+      
+      if (!isSecureOrigin) {
+        // Geolocation requires HTTPS
+        localStorage.removeItem('locationPermission');
+        return;
+      }
+
+      localStorage.setItem('locationPermission', 'granted');
+      // Immediately request browser geolocation permission
+      if (navigator.geolocation) {
+        try {
+          // Try getCurrentPosition first to trigger permission prompt
+          // Use a shorter timeout for the initial check, then fall back to watchPosition
+          await new Promise<void>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                // Permission granted, start tracking
+                startLocationTracking();
+                resolve();
+              },
+              (error) => {
+                // Handle different error codes
+                if (error.code === 1) {
+                  // Permission denied - remove preference so user can try again
+                  localStorage.removeItem('locationPermission');
+                  reject(error);
+                } else if (error.code === 3) {
+                  // Timeout - this is OK, permission might still be granted
+                  // Try starting watchPosition anyway, it might work
+                  startLocationTracking();
+                  resolve(); // Don't reject, just start tracking
+                } else if (error.message && error.message.includes("secure origin")) {
+                  // HTTPS required error
+                  localStorage.removeItem('locationPermission');
+                  reject(error);
+                } else {
+                  // Other errors - still try watchPosition
+                  startLocationTracking();
+                  resolve(); // Don't reject, just start tracking
+                }
+              },
+              {
+                enableHighAccuracy: true,
+                timeout: 5000, // Shorter timeout for initial check
+                maximumAge: 0,
+              }
+            );
+          });
+        } catch (error: any) {
+          // If getCurrentPosition fails but it's not a permission error, try watchPosition
+          if (error?.code === 1 || (error?.message && error.message.includes("secure origin"))) {
+            // Permission denied or HTTPS required - don't try watchPosition
+            localStorage.removeItem('locationPermission');
+          } else {
+            // For timeout or other errors, try watchPosition anyway
+            startLocationTracking();
+          }
+        }
+      }
+    } else {
+      localStorage.setItem('locationPermission', 'denied');
+    }
+  };
 
   const firstNinePar = getFirstNinePar();
   const allParticipants = [
@@ -197,6 +402,42 @@ export function MultiPlayerScoreInput({
 
   return (
     <>
+      {/* Location Permission Prompt */}
+      <Dialog open={showLocationPrompt} onOpenChange={(open) => !open && handleLocationPermission(false)}>
+        <DialogContent className="max-w-md z-[9999]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <Navigation className="h-5 w-5 text-purple-600" />
+              Enable Location Tracking
+            </DialogTitle>
+            <DialogDescription>
+              Share your location to see your distance to the basket in real-time during your round.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              Your location will only be used to calculate the distance to the basket and won't be shared with anyone else.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => handleLocationPermission(false)}
+            >
+              Not Now
+            </Button>
+            <Button
+              onClick={() => handleLocationPermission(true)}
+            >
+              <Navigation className="h-4 w-4 mr-2" />
+              Enable Location
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Halfway Review Dialog */}
       <Dialog open={showHalfwayReview} onOpenChange={setShowHalfwayReview}>
         <DialogContent className="max-w-md">
@@ -355,12 +596,18 @@ export function MultiPlayerScoreInput({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Hole Map Visualization */}
-        <HoleMap
-          holeNumber={currentHole + 1}
-          par={currentPar}
-          distanceMeters={currentDistance}
-        />
+        {/* Real Map Visualization */}
+        {courseId && (
+          <div className="w-full h-64 rounded-lg border-2 relative overflow-visible">
+            <div className="absolute inset-0 rounded-lg overflow-hidden">
+              <DiscGolfMapWrapper 
+                courseId={courseId} 
+                holeNumber={currentHole + 1}
+                className="h-full w-full"
+              />
+            </div>
+          </div>
+        )}
 
         {/* Hole Details - Badge Style */}
         <div className="flex items-center justify-center gap-2 flex-wrap">          
@@ -370,12 +617,37 @@ export function MultiPlayerScoreInput({
           </Badge>
           
           {currentDistance > 0 && (
-            <>
-              <Badge variant="outline" className="px-4 py-2 text-base font-semibold border-2 border-blue-500/30 bg-blue-500/5">
-                <Ruler className="h-4 w-4 mr-1.5 text-blue-600" />
-                <span className="text-blue-600">{currentDistance}m</span>
-              </Badge>
-            </>
+            <Badge variant="outline" className="px-4 py-2 text-base font-semibold border-2 border-blue-500/30 bg-blue-500/5">
+              <Ruler className="h-4 w-4 mr-1.5 text-blue-600" />
+              <span className="text-blue-600">{currentDistance}m</span>
+            </Badge>
+          )}
+          
+          {userToBasketDistance !== null && (
+            <Badge variant="outline" className={`px-4 py-2 text-base font-semibold border-2 ${
+              userToBasketDistance <= 500 
+                ? 'border-purple-500/30 bg-purple-500/5' 
+                : 'border-purple-500/20 bg-purple-500/5 opacity-60'
+            }`}>
+              <Navigation className="h-4 w-4 mr-1.5 text-purple-600" />
+              <span className="text-purple-600">{Math.round(userToBasketDistance)}m</span>
+            </Badge>
+          )}
+          
+          {userToBasketDistance === null && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Reset permission and show dialog again
+                localStorage.removeItem('locationPermission');
+                setShowLocationPrompt(true);
+              }}
+              className="px-4 py-2 text-base font-semibold border-2 border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10"
+            >
+              <Navigation className="h-4 w-4 mr-1.5 text-purple-600" />
+              <span className="text-purple-600">Enable Location</span>
+            </Button>
           )}
         </div>
 

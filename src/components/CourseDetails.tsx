@@ -6,9 +6,11 @@ import { api } from '../../convex/_generated/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Heart, MapPin, Calendar, Star, Clock, Ruler, Trophy, TrendingUp, Footprints, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
+import { Heart, MapPin, Calendar, Star, Clock, Ruler, Trophy, TrendingUp, Footprints, BarChart3, ChevronDown, ChevronUp, Map } from 'lucide-react';
 import DgBasketIcon from '@/components/DgBasketIcon';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import CourseMapWrapper from '@/components/CourseMapWrapper';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface CourseDetailsProps {
   course: any;
@@ -18,6 +20,7 @@ interface CourseDetailsProps {
 
 export function CourseDetails({ course, onStartGame, isExpanded }: CourseDetailsProps) {
   const { currentUser } = useCurrentUser();
+  const [activeTab, setActiveTab] = useState<'details' | 'map'>('details');
 
   const courseHoles = useQuery(api.courses.getHoles, 
     course._id ? { courseId: course._id as any } : "skip"
@@ -248,9 +251,32 @@ export function CourseDetails({ course, onStartGame, isExpanded }: CourseDetails
                 }}
               >
                 <MapPin className="h-3 w-3 mr-1" />
-                Map
+                External Map
               </Button>
             </div>
+
+            {/* Course Map Tab */}
+            {courseHoles && courseHoles.some(h => h.teeLat && h.teeLon && h.basketLat && h.basketLon) && (
+              <div className="pt-4 border-t mt-4">
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'details' | 'map')} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="details">Details</TabsTrigger>
+                    <TabsTrigger value="map">
+                      <Map className="h-3 w-3 mr-1" />
+                      Course Map
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="details" className="mt-0">
+                    {/* Details content is already shown above */}
+                  </TabsContent>
+                  <TabsContent value="map" className="mt-0">
+                    <div className="h-[500px] rounded-lg overflow-hidden border-2">
+                      <CourseMapWrapper courseId={course._id} className="h-full" />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            )}
           </CardContent>
         </Card>
   );

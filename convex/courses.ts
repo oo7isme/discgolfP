@@ -438,4 +438,122 @@ export const addOppegardCourse = mutation({
   },
 });
 
+// Update hole positions (tee and basket)
+export const updateHolePositions = mutation({
+  args: {
+    courseId: v.id("courses"),
+    hole: v.number(),
+    teeLat: v.optional(v.number()),
+    teeLon: v.optional(v.number()),
+    basketLat: v.optional(v.number()),
+    basketLon: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const { courseId, hole, teeLat, teeLon, basketLat, basketLon } = args;
+    
+    // Find the hole
+    const existingHole = await ctx.db
+      .query("courseHoles")
+      .withIndex("by_course_hole", (q) => q.eq("courseId", courseId).eq("hole", hole))
+      .first();
+
+    if (!existingHole) {
+      throw new Error(`Hole ${hole} not found for this course`);
+    }
+
+    // Update the hole with new positions
+    await ctx.db.patch(existingHole._id, {
+      teeLat: teeLat ?? existingHole.teeLat,
+      teeLon: teeLon ?? existingHole.teeLon,
+      basketLat: basketLat ?? existingHole.basketLat,
+      basketLon: basketLon ?? existingHole.basketLon,
+    });
+
+    return { success: true, holeId: existingHole._id };
+  },
+});
+
+// Set Ekeberg hole positions (approximate coordinates for Ekeberg Disc Golf Course in Oslo)
+export const setEkebergHolePositions = mutation({
+  handler: async (ctx) => {
+    // Find Ekeberg course
+    const courses = await ctx.db.query("courses").collect();
+    const ekebergCourse = courses.find(course => 
+      course.name.toLowerCase().includes('ekeberg')
+    );
+
+    if (!ekebergCourse) {
+      throw new Error("Ekeberg course not found");
+    }
+
+    // Ekeberg Disc Golf Course coordinates from OpenStreetMap GeoJSON
+    // Coordinates extracted from map/lines.geojson - converted from [lon, lat] to [lat, lon]
+    const ekebergHolePositions = [
+      // Hole 1: tee at [10.7871644, 59.8949319], basket at [10.7877485, 59.8942663]
+      { hole: 1, teeLat: 59.8949319, teeLon: 10.7871644, basketLat: 59.8942663, basketLon: 10.7877485 },
+      // Hole 2: tee at [10.7879838, 59.8940167], basket at [10.7882011, 59.8945078]
+      { hole: 2, teeLat: 59.8940167, teeLon: 10.7879838, basketLat: 59.8945078, basketLon: 10.7882011 },
+      // Hole 3: tee at [10.7888656, 59.8935519], basket at [10.788934, 59.8926336] (last point in LineString)
+      { hole: 3, teeLat: 59.8935519, teeLon: 10.7888656, basketLat: 59.8926336, basketLon: 10.788934 },
+      // Hole 4: tee at [10.789687, 59.8918455], basket at [10.79032, 59.8915186]
+      { hole: 4, teeLat: 59.8918455, teeLon: 10.789687, basketLat: 59.8915186, basketLon: 10.79032 },
+      // Hole 5: tee at [10.7906104, 59.8913356], basket at [10.7910073, 59.8908404]
+      { hole: 5, teeLat: 59.8913356, teeLon: 10.7906104, basketLat: 59.8908404, basketLon: 10.7910073 },
+      // Hole 6: tee at [10.7919406, 59.8907458], basket at [10.792633, 59.890146]
+      { hole: 6, teeLat: 59.8907458, teeLon: 10.7919406, basketLat: 59.890146, basketLon: 10.792633 },
+      // Hole 7: tee at [10.792783, 59.8898562], basket at [10.7930418, 59.8896019]
+      { hole: 7, teeLat: 59.8898562, teeLon: 10.792783, basketLat: 59.8896019, basketLon: 10.7930418 },
+      // Hole 8: tee at [10.7931498, 59.8894145], basket at [10.7920554, 59.8891965]
+      { hole: 8, teeLat: 59.8894145, teeLon: 10.7931498, basketLat: 59.8891965, basketLon: 10.7920554 },
+      // Hole 9: tee at [10.7917175, 59.8894966], basket at [10.7909852, 59.8891992]
+      { hole: 9, teeLat: 59.8894966, teeLon: 10.7917175, basketLat: 59.8891992, basketLon: 10.7909852 },
+      // Hole 10: tee at [10.7909074, 59.8895376], basket at [10.7915083, 59.8897744]
+      { hole: 10, teeLat: 59.8895376, teeLon: 10.7909074, basketLat: 59.8897744, basketLon: 10.7915083 },
+      // Hole 11: tee at [10.7917658, 59.8902588], basket at [10.7905051, 59.8900705]
+      { hole: 11, teeLat: 59.8902588, teeLon: 10.7917658, basketLat: 59.8900705, basketLon: 10.7905051 },
+      // Hole 12: tee at [10.790766, 59.8906931], basket at [10.7893793, 59.890902]
+      { hole: 12, teeLat: 59.8906931, teeLon: 10.790766, basketLat: 59.890902, basketLon: 10.7893793 },
+      // Hole 13: tee at [10.7887127, 59.8915838], basket at [10.7896247, 59.8915193]
+      { hole: 13, teeLat: 59.8915838, teeLon: 10.7887127, basketLat: 59.8915193, basketLon: 10.7896247 },
+      // Hole 14: tee at [10.7886879, 59.8922347], basket at [10.7896059, 59.892745] (last point)
+      { hole: 14, teeLat: 59.8922347, teeLon: 10.7886879, basketLat: 59.892745, basketLon: 10.7896059 },
+      // Hole 15: tee at [10.788598, 59.8936713], basket at [10.7867259, 59.8934883]
+      { hole: 15, teeLat: 59.8936713, teeLon: 10.788598, basketLat: 59.8934883, basketLon: 10.7867259 },
+      // Hole 16: tee at [10.7871255, 59.8927554], basket at [10.7878625, 59.8931052] (last point)
+      { hole: 16, teeLat: 59.8927554, teeLon: 10.7871255, basketLat: 59.8931052, basketLon: 10.7878625 },
+      // Hole 17: tee at [10.7863913, 59.8935913], basket at [10.7869177, 59.8927241]
+      { hole: 17, teeLat: 59.8935913, teeLon: 10.7863913, basketLat: 59.8927241, basketLon: 10.7869177 },
+      // Hole 18: tee at [10.7866836, 59.8937958], basket at [10.7876385, 59.8941059]
+      { hole: 18, teeLat: 59.8937958, teeLon: 10.7866836, basketLat: 59.8941059, basketLon: 10.7876385 },
+    ];
+
+    const updatedHoles = [];
+    for (const pos of ekebergHolePositions) {
+      const existingHole = await ctx.db
+        .query("courseHoles")
+        .withIndex("by_course_hole", (q) => 
+          q.eq("courseId", ekebergCourse._id).eq("hole", pos.hole)
+        )
+        .first();
+
+      if (existingHole) {
+        await ctx.db.patch(existingHole._id, {
+          teeLat: pos.teeLat,
+          teeLon: pos.teeLon,
+          basketLat: pos.basketLat,
+          basketLon: pos.basketLon,
+        });
+        updatedHoles.push(pos.hole);
+      }
+    }
+
+    return {
+      success: true,
+      courseId: ekebergCourse._id,
+      updatedHoles: updatedHoles.length,
+      message: `Updated positions for ${updatedHoles.length} holes`,
+    };
+  },
+});
+
 

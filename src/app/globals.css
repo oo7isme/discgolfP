@@ -1,5 +1,11 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "leaflet/dist/leaflet.css";
+
+/* Hide POI markers on Leaflet maps - note: POIs embedded in tile images cannot be hidden */
+.leaflet-container .leaflet-marker-icon:not([src*="custom"]) {
+  /* This will hide default Leaflet markers, but not POIs in tile images */
+}
 
 @custom-variant dark (&:is(.dark *));
 
