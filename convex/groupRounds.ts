@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
 import { v } from "convex/values";
+import { calculateRating } from "./pdgaRating";
 
 export const createGroupRound = mutation({
   args: {
@@ -54,7 +55,6 @@ export const createGroupRound = mutation({
       const totalPar = courseHoles.reduce((sum, h) => sum + (h.par || 0), 0);
       
       // Calculate PDGA rating if applicable
-      const { calculateRating } = await import("./pdgaRating");
       const rating = await calculateRating(ctx, args.courseId, totalStrokes);
       
       // Create the round

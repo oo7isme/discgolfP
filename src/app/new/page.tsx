@@ -41,10 +41,10 @@ export default function NewGamePage() {
   const courses = useQuery(api.courses.getAll);
   const { toast } = useToast();
 
-  const selectedCourseData = courses?.find(c => c._id === selectedCourseId);
+  const selectedCourseData = courses?.find((c: { _id: string }) => c._id === selectedCourseId);
 
   // Filter courses based on search query
-  const filteredCourses = courses?.filter(course =>
+  const filteredCourses = courses?.filter((course: { name: string; location?: string }) =>
     course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (course.location && course.location.toLowerCase().includes(searchQuery.toLowerCase()))
   ) || [];
@@ -101,7 +101,7 @@ export default function NewGamePage() {
         {/* Course List */}
         <div className="space-y-3">
           {filteredCourses.length > 0 ? (
-            filteredCourses.map((course) => (
+            filteredCourses.map((course: { _id: string; name: string; location?: string; holes: number; difficulty?: string; estimatedLengthMeters?: number }) => (
               <div key={course._id} className="space-y-2">
                 <Card className="hover:shadow-md transition-shadow">
                   <CardContent className="p-4">

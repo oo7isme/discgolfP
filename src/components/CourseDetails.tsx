@@ -43,8 +43,8 @@ export function CourseDetails({ course, onStartGame, isExpanded }: CourseDetails
     }
   };
 
-  const totalPar = courseHoles?.reduce((sum, hole) => sum + hole.par, 0) || 0;
-  const totalDistance = courseHoles?.reduce((sum, hole) => sum + (hole.distanceMeters || 0), 0) || 0;
+  const totalPar = courseHoles?.reduce((sum: number, hole: { hole: number; par: number }) => sum + hole.par, 0) || 0;
+  const totalDistance = courseHoles?.reduce((sum: number, hole: { distanceMeters?: number }) => sum + (hole.distanceMeters || 0), 0) || 0;
   const averagePar = courseHoles?.length ? (totalPar / courseHoles.length).toFixed(1) : 0;
   const averageDistance = courseHoles?.length ? Math.round(totalDistance / courseHoles.length) : 0;
   
@@ -54,7 +54,7 @@ export function CourseDetails({ course, onStartGame, isExpanded }: CourseDetails
   const playTimeMinutes = estimatedPlayTime % 60;
   
   // Calculate distance range
-  const distances = courseHoles?.map(hole => hole.distanceMeters || 0).filter(d => d > 0) || [];
+  const distances = courseHoles?.map((hole: { distanceMeters?: number }) => hole.distanceMeters || 0).filter((d: number) => d > 0) || [];
   const minDistance = distances.length ? Math.min(...distances) : 0;
   const maxDistance = distances.length ? Math.max(...distances) : 0;
   
@@ -175,9 +175,30 @@ export function CourseDetails({ course, onStartGame, isExpanded }: CourseDetails
                   'Distance information not available')}
               </p>
             </div>
-
-            {/* Hole Details */}
-            {courseHoles && courseHoles.length > 0 && (
+{/* Course Map Tab */}
+{courseHoles && courseHoles.some((h: { teeLat?: number; teeLon?: number; basketLat?: number; basketLon?: number }) => h.teeLat && h.teeLon && h.basketLat && h.basketLon) && (
+              <div className="pt-4 border-t mt-4">
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'details' | 'map')} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="details">Details</TabsTrigger>
+                    <TabsTrigger value="map">
+                      <Map className="h-3 w-3 mr-1" />
+                      Course Map
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="details" className="mt-0">
+                    {/* Details content is already shown above */}
+                  </TabsContent>
+                  <TabsContent value="map" className="mt-0">
+                    <div className="h-[500px] rounded-lg overflow-hidden border-2">
+                      <CourseMapWrapper courseId={course._id} className="h-full" />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            )}
+            {/* Hole Details - Only show when details tab is active */}
+            {activeTab === 'details' && courseHoles && courseHoles.length > 0 && (
               <div className="border rounded-lg">
                 <div className="p-3 border-b">
                   <h4 className="flex items-center gap-2 text-base font-semibold">
@@ -198,7 +219,7 @@ export function CourseDetails({ course, onStartGame, isExpanded }: CourseDetails
                   
                   {/* Holes 1-9 */}
                   <div className="space-y-0.5 mb-3">
-                    {courseHoles.slice(0, 9).map((hole) => (
+                    {courseHoles.slice(0, 9).map((hole: { hole: number; par: number; distanceMeters?: number }) => (
                       <div key={hole.hole} className="grid grid-cols-3 gap-2 text-xs">
                         <div className="font-medium">Hole {hole.hole}</div>
                         <div className="text-muted-foreground">
@@ -212,7 +233,7 @@ export function CourseDetails({ course, onStartGame, isExpanded }: CourseDetails
                   {/* Holes 10-18 */}
                   {courseHoles.length > 9 && (
                     <div className="space-y-0.5">
-                      {courseHoles.slice(9, 18).map((hole) => (
+                      {courseHoles.slice(9, 18).map((hole: { hole: number; par: number; distanceMeters?: number }) => (
                         <div key={hole.hole} className="grid grid-cols-3 gap-2 text-xs">
                           <div className="font-medium">Hole {hole.hole}</div>
                           <div className="text-muted-foreground">
@@ -255,28 +276,7 @@ export function CourseDetails({ course, onStartGame, isExpanded }: CourseDetails
               </Button>
             </div>
 
-            {/* Course Map Tab */}
-            {courseHoles && courseHoles.some(h => h.teeLat && h.teeLon && h.basketLat && h.basketLon) && (
-              <div className="pt-4 border-t mt-4">
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'details' | 'map')} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 mb-4">
-                    <TabsTrigger value="details">Details</TabsTrigger>
-                    <TabsTrigger value="map">
-                      <Map className="h-3 w-3 mr-1" />
-                      Course Map
-                    </TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="details" className="mt-0">
-                    {/* Details content is already shown above */}
-                  </TabsContent>
-                  <TabsContent value="map" className="mt-0">
-                    <div className="h-[500px] rounded-lg overflow-hidden border-2">
-                      <CourseMapWrapper courseId={course._id} className="h-full" />
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </div>
-            )}
+            
           </CardContent>
         </Card>
   );
