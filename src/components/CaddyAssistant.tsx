@@ -56,7 +56,7 @@ function CaddyAssistantComponent({
     if (!scores) return '';
     try {
       const sorted = Object.keys(scores).sort((a, b) => Number(a) - Number(b));
-      return sorted.map(k => `${k}:${scores[k]}`).join(',');
+      return sorted.map(k => `${k}:${scores[Number(k)]}`).join(',');
     } catch {
       return '';
     }
