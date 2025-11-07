@@ -610,7 +610,7 @@ export function MultiPlayerScoreInput({
         )}
 
         {/* Hole Details - Badge Style */}
-        <div className="flex items-center justify-center gap-2 flex-wrap">          
+        <div className="flex items-center justify-center gap-2">          
           <Badge variant="outline" className="px-4 py-2 text-base font-semibold border-2 border-green-500/30 bg-green-500/5">
             <Target className="h-4 w-4 mr-1.5 text-green-600" />
             <span className="text-green-600">Par {currentPar}</span>

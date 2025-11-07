@@ -13,7 +13,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { FriendSelector } from '@/components/FriendSelector';
 import { CourseDetails } from '@/components/CourseDetails';
 import { StartRoundModal } from '@/components/StartRoundModal';
-import { Search, Heart, MapPin, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Heart, MapPin, Calendar, ChevronDown, ChevronRight, Pin } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface Participant {
@@ -154,7 +154,7 @@ export default function NewGamePage() {
                           className="flex-1 h-10 flex items-center justify-center gap-1"
                         >
                           <span>Details</span>
-                          {expandedCourseId === course._id ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                          {expandedCourseId === course._id ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                         </Button>
                       </div>
                     </div>

@@ -12,6 +12,8 @@ import { useState } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { PerformanceChart } from '@/components/PerformanceChart';
 import { CoursePerformanceChart } from '@/components/CoursePerformanceChart';
+import { HoleByHoleAnalysis } from '@/components/HoleByHoleAnalysis';
+import { SocialComparison } from '@/components/SocialComparison';
 import { useMutation } from 'convex/react';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -196,8 +198,19 @@ export default function StatsPage() {
         </Link>
       </div>
 
-      {/* Key Metrics */}
-      <Card>
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="holes">Hole Analysis</TabsTrigger>
+          <TabsTrigger value="social">Social</TabsTrigger>
+        </TabsList>
+
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-6">
+          {/* Key Metrics */}
+          <Card>
         <CardHeader>
           <CardTitle>Your Stats</CardTitle>
           <CardDescription>
@@ -238,77 +251,67 @@ export default function StatsPage() {
         </CardContent>
       </Card>
 
-      {/* Monthly Goal */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Monthly Goal</CardTitle>
-              <CardDescription>
-                Rounds played this month: {monthlyRounds} / {goalTarget}
-              </CardDescription>
-            </div>
-            <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                  Set Goal
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Set Monthly Goal</DialogTitle>
-                  <DialogDescription>
-                    Set your target number of rounds to play this month.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="goal-target">Target Rounds</Label>
-                    <Input
-                      id="goal-target"
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={newGoalTarget}
-                      onChange={(e) => setNewGoalTarget(parseInt(e.target.value) || 10)}
-                    />
-                  </div>
+          {/* Monthly Goal */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Monthly Goal</CardTitle>
+                  <CardDescription>
+                    Rounds played this month: {monthlyRounds} / {goalTarget}
+                  </CardDescription>
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setGoalDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSetGoal}>
-                    Set Goal
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Progress value={monthlyProgress} className="w-full" />
-          <div className="mt-2 text-sm text-muted-foreground">
-            {monthlyProgress.toFixed(0)}% complete
-          </div>
-          {monthlyGoal?.completed && (
-            <div className="mt-2 text-sm text-green-600 font-medium">
-              🎉 Goal achieved!
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      Set Goal
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Set Monthly Goal</DialogTitle>
+                      <DialogDescription>
+                        Set your target number of rounds to play this month.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="goal-target">Target Rounds</Label>
+                        <Input
+                          id="goal-target"
+                          type="number"
+                          min="1"
+                          max="100"
+                          value={newGoalTarget}
+                          onChange={(e) => setNewGoalTarget(parseInt(e.target.value) || 10)}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setGoalDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleSetGoal}>
+                        Set Goal
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Progress value={monthlyProgress} className="w-full" />
+              <div className="mt-2 text-sm text-muted-foreground">
+                {monthlyProgress.toFixed(0)}% complete
+              </div>
+              {monthlyGoal?.completed && (
+                <div className="mt-2 text-sm text-green-600 font-medium">
+                  🎉 Goal achieved!
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-      {/* Main Content Tabs */}
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="insights">Insights</TabsTrigger>
-        </TabsList>
-
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
           {/* Recent Rounds */}
           <Card>
             <CardHeader>
@@ -481,75 +484,25 @@ export default function StatsPage() {
           )}
         </TabsContent>
 
-        {/* Insights Tab */}
-        <TabsContent value="insights" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Performance Insights</CardTitle>
-              <CardDescription>
-                AI-powered insights about your game
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {totalRounds === 0 ? (
-                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                    <div className="font-medium text-gray-800">📈 Start Playing!</div>
-                    <div className="text-sm text-gray-700">
-                      Play some rounds to see personalized insights about your disc golf performance.
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {improvement > 5 && (
-                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="font-medium text-green-800">🎉 Great Improvement!</div>
-                        <div className="text-sm text-green-700">
-                          You've improved by {improvement.toFixed(1)}% in your recent rounds. Keep up the great work!
-                        </div>
-                      </div>
-                    )}
-                    
-                    {totalRounds >= 10 && (
-                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="font-medium text-blue-800">📊 Consistent Player</div>
-                        <div className="text-sm text-blue-700">
-                          You've played {totalRounds} rounds, showing great dedication to the sport!
-                        </div>
-                      </div>
-                    )}
-                    
-                    {bestScore < 50 && bestScore > 0 && (
-                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <div className="font-medium text-yellow-800">🏆 Excellent Performance</div>
-                        <div className="text-sm text-yellow-700">
-                          Your best score of {bestScore} is impressive! You're playing at a high level.
-                        </div>
-                      </div>
-                    )}
+        {/* Hole-by-Hole Analysis Tab */}
+        <TabsContent value="holes" className="space-y-6">
+          <HoleByHoleAnalysis rounds={filteredRounds as any} />
+        </TabsContent>
 
-                    {totalRounds > 0 && totalRounds < 5 && (
-                      <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                        <div className="font-medium text-purple-800">🌱 Getting Started</div>
-                        <div className="text-sm text-purple-700">
-                          You've played {totalRounds} rounds. Play a few more to unlock detailed insights!
-                        </div>
-                      </div>
-                    )}
-
-                    {worstScore > 0 && (
-                      <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                        <div className="font-medium text-orange-800">🎯 Room for Improvement</div>
-                        <div className="text-sm text-orange-700">
-                          Your worst score was {worstScore}. Focus on consistency to lower your average!
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+        {/* Social Comparison Tab */}
+        <TabsContent value="social" className="space-y-6">
+          {currentUser && (
+            <SocialComparison
+              currentUserId={currentUser._id}
+              currentUserRounds={filteredRounds}
+              currentUserStats={{
+                totalRounds,
+                averageScore: parseFloat(averageScore),
+                bestScore: bestScore === Infinity ? 0 : bestScore,
+                averageRating: roundsWithRatings.length > 0 ? Math.round(totalRatings / roundsWithRatings.length) : 0,
+              }}
+            />
+          )}
         </TabsContent>
       </Tabs>
       </div>

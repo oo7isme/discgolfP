@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface RoundData {
@@ -121,30 +121,47 @@ export function CoursePerformanceChart({ rounds }: CoursePerformanceChartProps) 
                 tick={{ fontSize: 12 }}
                 tickLine={{ stroke: 'currentColor', opacity: 0.3 }}
                 domain={['dataMin - 5', 'dataMax + 5']}
+                label={{ value: 'Score to Par', angle: -90, position: 'insideLeft' }}
               />
+              <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
               <Tooltip 
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
                     const data = payload[0].payload;
                     return (
-                      <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
+                      <div className="bg-background border border-border rounded-lg p-3 shadow-lg z-50">
                         <p className="font-medium">{data.course}</p>
-                        <p className="text-sm">Avg Score to Par: <span className="font-medium">{data.averageScoreToPar > 0 ? '+' : ''}{data.averageScoreToPar}</span></p>
+                        <p className="text-sm">
+                          Avg Score to Par: <span className={`font-medium ${data.averageScoreToPar > 0 ? 'text-red-600' : data.averageScoreToPar < 0 ? 'text-green-600' : 'text-blue-600'}`}>
+                            {data.averageScoreToPar > 0 ? '+' : ''}{data.averageScoreToPar}
+                          </span>
+                        </p>
                         <p className="text-sm">Avg Total Strokes: <span className="font-medium">{data.averageStrokes}</span></p>
                         <p className="text-sm">Rounds Played: <span className="font-medium">{data.rounds}</span></p>
-                        <p className="text-sm">Best to Par: <span className="font-medium">{data.bestScoreToPar > 0 ? '+' : ''}{data.bestScoreToPar}</span></p>
-                        <p className="text-sm">Worst to Par: <span className="font-medium">{data.worstScoreToPar > 0 ? '+' : ''}{data.worstScoreToPar}</span></p>
+                        <p className="text-sm">Best to Par: <span className="font-medium text-green-600">{data.bestScoreToPar > 0 ? '+' : ''}{data.bestScoreToPar}</span></p>
+                        <p className="text-sm">Worst to Par: <span className="font-medium text-red-600">{data.worstScoreToPar > 0 ? '+' : ''}{data.worstScoreToPar}</span></p>
                       </div>
                     );
                   }
                   return null;
                 }}
+                cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
               />
               <Bar 
                 dataKey="averageScoreToPar" 
-                fill="hsl(var(--primary))" 
                 radius={[4, 4, 0, 0]}
-              />
+              >
+                {chartData.map((entry, index) => {
+                  const color = entry.averageScoreToPar <= -1 
+                    ? '#10b981' // Green for under par
+                    : entry.averageScoreToPar <= 1 
+                    ? '#3b82f6' // Blue for near par
+                    : entry.averageScoreToPar <= 3
+                    ? '#f59e0b' // Orange for bogey range
+                    : '#ef4444'; // Red for worse
+                  return <Cell key={`cell-${index}`} fill={color} />;
+                })}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
