@@ -88,14 +88,14 @@ function ScorePageContent() {
       
       // Initialize current user scores (use 'you' as key to match MultiPlayerScoreInput)
       initialScores['you'] = {};
-      courseHoles.forEach((hole, index) => {
+      courseHoles.forEach((hole: { hole: number; par: number }, index: number) => {
         initialScores['you'][index] = hole.par;
       });
 
       // Initialize participant scores
       participants.forEach(participant => {
         initialScores[participant.id] = {};
-        courseHoles.forEach((hole, index) => {
+        courseHoles.forEach((hole: { hole: number; par: number }, index: number) => {
           initialScores[participant.id][index] = hole.par;
         });
       });
@@ -123,7 +123,7 @@ function ScorePageContent() {
       if (participants.length === 0) {
         // Solo round
         const playerScores = scores['you'] || {};
-        const roundScores = courseHoles?.map((hole, index) => ({
+        const roundScores = courseHoles?.map((hole: { hole: number; par: number }, index: number) => ({
           hole: hole.hole,
           strokes: playerScores[index] || hole.par,
         })) || [];
@@ -141,7 +141,7 @@ function ScorePageContent() {
         const allParticipants = [
           {
             userId: currentUser._id,
-            scores: courseHoles?.map((hole, index) => ({
+            scores: courseHoles?.map((hole: { hole: number; par: number }, index: number) => ({
               hole: hole.hole,
               strokes: scores['you']?.[index] || hole.par,
             })) || [],
@@ -150,7 +150,7 @@ function ScorePageContent() {
             userId: p.type === 'user' ? p.userId as any : undefined,
             guestName: p.type === 'guest' ? p.name : undefined,
             guestEmail: p.type === 'guest' ? p.guestEmail : undefined,
-            scores: courseHoles?.map((hole, index) => ({
+            scores: courseHoles?.map((hole: { hole: number; par: number }, index: number) => ({
               hole: hole.hole,
               strokes: scores[p.id]?.[index] || hole.par,
             })) || [],
@@ -258,7 +258,7 @@ function ScorePageContent() {
                 currentHole={currentHole}
                 totalHoles={courseHoles.length}
                 currentScore={Object.values(scores['you']).slice(0, currentHole - 1).reduce((sum, score) => sum + score, 0)}
-                coursePar={courseHoles.reduce((sum, hole) => sum + hole.par, 0)}
+                coursePar={courseHoles.reduce((sum: number, hole: { hole: number; par: number }) => sum + hole.par, 0)}
                 scores={scores['you']}
                 courseHoles={courseHoles}
               />
@@ -316,11 +316,11 @@ function ScorePageContent() {
             totalStrokes: participants.length === 0 
               ? Object.values(scores['you'] || {}).reduce((sum, score) => sum + score, 0)
               : Object.values(scores['you'] || {}).reduce((sum, score) => sum + score, 0),
-            coursePar: courseHoles.reduce((sum, hole) => sum + hole.par, 0),
+            coursePar: courseHoles.reduce((sum: number, hole: { hole: number; par: number }) => sum + hole.par, 0),
             roundType: roundType,
             startedAt: Date.now() - (2 * 60 * 60 * 1000), // Approximate start time
             completedAt: Date.now(),
-            scores: courseHoles.map((hole, index) => ({
+            scores: courseHoles.map((hole: { hole: number; par: number }, index: number) => ({
               hole: hole.hole,
               strokes: scores['you']?.[index] || hole.par,
               par: hole.par,

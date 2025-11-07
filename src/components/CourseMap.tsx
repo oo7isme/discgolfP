@@ -104,7 +104,8 @@ export default function CourseMap({ courseId, className = "" }: CourseMapProps) 
   const holesWithPositions = useMemo(() => {
     if (!courseHoles) return [];
     return courseHoles.filter(
-      (hole) => hole.teeLat && hole.teeLon && hole.basketLat && hole.basketLon
+      (hole: { teeLat?: number; teeLon?: number; basketLat?: number; basketLon?: number }) => 
+        hole.teeLat && hole.teeLon && hole.basketLat && hole.basketLon
     );
   }, [courseHoles]);
 
@@ -115,10 +116,10 @@ export default function CourseMap({ courseId, className = "" }: CourseMapProps) 
     }
     if (holesWithPositions.length > 0) {
       const avgLat =
-        holesWithPositions.reduce((sum, h) => sum + (h.teeLat || 0) + (h.basketLat || 0), 0) /
+        holesWithPositions.reduce((sum: number, h: { teeLat?: number; basketLat?: number }) => sum + (h.teeLat || 0) + (h.basketLat || 0), 0) /
         (holesWithPositions.length * 2);
       const avgLon =
-        holesWithPositions.reduce((sum, h) => sum + (h.teeLon || 0) + (h.basketLon || 0), 0) /
+        holesWithPositions.reduce((sum: number, h: { teeLon?: number; basketLon?: number }) => sum + (h.teeLon || 0) + (h.basketLon || 0), 0) /
         (holesWithPositions.length * 2);
       return [avgLat, avgLon] as [number, number];
     }
@@ -168,7 +169,7 @@ export default function CourseMap({ courseId, className = "" }: CourseMapProps) 
         <MapBoundsFit holes={holesWithPositions} />
 
         {/* Render all holes */}
-        {holesWithPositions.map((hole) => (
+        {holesWithPositions.map((hole: { hole: number; par: number; distanceMeters?: number; teeLat?: number; teeLon?: number; basketLat?: number; basketLon?: number }) => (
           <div key={hole.hole}>
             {/* Tee marker */}
             <Marker
@@ -251,7 +252,7 @@ export default function CourseMap({ courseId, className = "" }: CourseMapProps) 
       </MapContainer>
 
       {/* Legend */}
-      <div className="absolute top-4 right-4 z-[1000] bg-white/95 backdrop-blur-sm rounded-lg p-3 shadow-lg border">
+      <div className="absolute top-4 right-4 z-[1] bg-white/95 backdrop-blur-sm rounded-lg p-3 shadow-lg border">
         <div className="space-y-2 text-xs">
           <div className="font-semibold mb-2">Legend</div>
           <div className="flex items-center gap-2">

@@ -43,8 +43,8 @@ export function CourseDetails({ course, onStartGame, isExpanded }: CourseDetails
     }
   };
 
-  const totalPar = courseHoles?.reduce((sum, hole) => sum + hole.par, 0) || 0;
-  const totalDistance = courseHoles?.reduce((sum, hole) => sum + (hole.distanceMeters || 0), 0) || 0;
+  const totalPar = courseHoles?.reduce((sum: number, hole: { hole: number; par: number }) => sum + hole.par, 0) || 0;
+  const totalDistance = courseHoles?.reduce((sum: number, hole: { distanceMeters?: number }) => sum + (hole.distanceMeters || 0), 0) || 0;
   const averagePar = courseHoles?.length ? (totalPar / courseHoles.length).toFixed(1) : 0;
   const averageDistance = courseHoles?.length ? Math.round(totalDistance / courseHoles.length) : 0;
   
@@ -54,7 +54,7 @@ export function CourseDetails({ course, onStartGame, isExpanded }: CourseDetails
   const playTimeMinutes = estimatedPlayTime % 60;
   
   // Calculate distance range
-  const distances = courseHoles?.map(hole => hole.distanceMeters || 0).filter(d => d > 0) || [];
+  const distances = courseHoles?.map((hole: { distanceMeters?: number }) => hole.distanceMeters || 0).filter((d: number) => d > 0) || [];
   const minDistance = distances.length ? Math.min(...distances) : 0;
   const maxDistance = distances.length ? Math.max(...distances) : 0;
   

@@ -93,16 +93,24 @@ function MapSizeUpdater() {
   const map = useMap();
 
   useEffect(() => {
+    if (!map) return;
+
     // Force map to update size multiple times to ensure it's correct
     const timers = [
-      setTimeout(() => map.invalidateSize(), 100),
-      setTimeout(() => map.invalidateSize(), 300),
-      setTimeout(() => map.invalidateSize(), 600),
+      setTimeout(() => {
+        if (map) map.invalidateSize();
+      }, 100),
+      setTimeout(() => {
+        if (map) map.invalidateSize();
+      }, 300),
+      setTimeout(() => {
+        if (map) map.invalidateSize();
+      }, 600),
     ];
 
     // Also invalidate on window resize
     const handleResize = () => {
-      map.invalidateSize();
+      if (map) map.invalidateSize();
     };
     window.addEventListener("resize", handleResize);
 
@@ -111,8 +119,10 @@ function MapSizeUpdater() {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setTimeout(() => map.invalidateSize(), 100);
+          if (entry.isIntersecting && map) {
+            setTimeout(() => {
+              if (map) map.invalidateSize();
+            }, 100);
           }
         });
       },
@@ -307,7 +317,7 @@ export default function DiscGolfMap({ courseId, holeNumber, className = "" }: Di
   // Get tee and basket positions for current hole from course data
   const currentHoleData = useMemo(() => {
     if (!courseHoles || !holeNumber) return null;
-    return courseHoles.find(h => h.hole === holeNumber);
+    return courseHoles.find((h: { hole: number; teeLat?: number; teeLon?: number; basketLat?: number; basketLon?: number }) => h.hole === holeNumber);
   }, [courseHoles, holeNumber]);
 
   const teePosition = useMemo(() => {
