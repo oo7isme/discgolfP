@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { ConvexProviderWithClerk } from 'convex/react-clerk'
 import { ConvexReactClient } from 'convex/react'
 import { useAuth } from '@clerk/nextjs'
@@ -21,10 +21,16 @@ export default function ConvexClientProvider({
   children: React.ReactNode
 }) {
   const { getToken, isLoaded, isSignedIn } = useAuth()
+  const [mounted, setMounted] = useState(false)
+
+  // Ensure we only render client-side differences after mount
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Debug logging
-  React.useEffect(() => {
-    if (isLoaded) {
+  useEffect(() => {
+    if (isLoaded && mounted) {
       console.log('🔐 Convex Client Provider Status:', {
         isLoaded,
         isSignedIn,
@@ -32,14 +38,18 @@ export default function ConvexClientProvider({
         hasToken: !!getToken,
       })
     }
-  }, [isLoaded, isSignedIn, getToken])
+  }, [isLoaded, isSignedIn, getToken, mounted])
+
+  // During SSR and initial render, use a consistent state
+  // After mount, use the actual auth state
+  const showBottomNav = mounted && isLoaded && isSignedIn
 
   // Use ConvexProviderWithClerk to properly pass authentication tokens to Convex
   return (
     <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-      <div className={`mx-auto max-w-md min-h-dvh bg-[var(--background)] text-[var(--foreground)] ${isSignedIn ? 'pb-16' : 'overflow-hidden'}`}>
+      <div className={`mx-auto max-w-md min-h-dvh bg-[var(--background)] text-[var(--foreground)] ${showBottomNav ? 'pb-16' : 'overflow-hidden'}`}>
         {children}
-        <BottomNav user={isSignedIn} />
+        {showBottomNav && <BottomNav user={true} />}
         <Toaster />
       </div>
     </ConvexProviderWithClerk>

@@ -58,8 +58,10 @@ export function MultiPlayerScoreInput({
   // Sync with parent's currentHole when it changes
   // Only depend on initialCurrentHole and courseHoles, not currentHole itself
   useEffect(() => {
+    if (!courseHoles || courseHoles.length === 0) return;
+    
     const newHole = initialCurrentHole - 1;
-    const maxHoles = courseHoles?.length || 18;
+    const maxHoles = courseHoles.length;
     if (newHole >= 0 && newHole < maxHoles) {
       setCurrentHole(prevHole => {
         // Only update if actually different
@@ -74,24 +76,76 @@ export function MultiPlayerScoreInput({
   const [hasShownHalfwayReview, setHasShownHalfwayReview] = useState(false);
   const [scores, setScores] = useState<ScoreData>(() => {
     const initialScores: ScoreData = {};
+    const numHoles = courseHoles?.length || 0;
+    
+    if (numHoles === 0) {
+      // Return empty scores if courseHoles not loaded yet
+      return initialScores;
+    }
+    
     // Initialize scores for 'you'
-    initialScores['you'] = Array(courseHoles?.length || 18).fill(0).reduce((acc, _, i) => {
+    initialScores['you'] = Array(numHoles).fill(0).reduce((acc, _, i) => {
       acc[i] = courseHoles?.[i]?.par || 3;
       return acc;
     }, {} as { [hole: number]: number });
     // Initialize scores for other participants
     participants.forEach(p => {
-      initialScores[p.id] = Array(courseHoles?.length || 18).fill(0).reduce((acc, _, i) => {
+      initialScores[p.id] = Array(numHoles).fill(0).reduce((acc, _, i) => {
         acc[i] = courseHoles?.[i]?.par || 3;
         return acc;
       }, {} as { [hole: number]: number });
     });
     return initialScores;
   });
+  
+  // Update scores when courseHoles changes (e.g., when data loads)
+  useEffect(() => {
+    if (!courseHoles || courseHoles.length === 0) return;
+    
+    const numHoles = courseHoles.length;
+    setScores(prevScores => {
+      const updatedScores: ScoreData = { ...prevScores };
+      
+      // Initialize or update scores for 'you'
+      if (!updatedScores['you']) {
+        updatedScores['you'] = {};
+      }
+      for (let i = 0; i < numHoles; i++) {
+        if (updatedScores['you'][i] === undefined || updatedScores['you'][i] === 0) {
+          updatedScores['you'][i] = courseHoles[i]?.par || 3;
+        }
+      }
+      
+      // Initialize or update scores for participants
+      participants.forEach(p => {
+        if (!updatedScores[p.id]) {
+          updatedScores[p.id] = {};
+        }
+        for (let i = 0; i < numHoles; i++) {
+          if (updatedScores[p.id][i] === undefined || updatedScores[p.id][i] === 0) {
+            updatedScores[p.id][i] = courseHoles[i]?.par || 3;
+          }
+        }
+      });
+      
+      return updatedScores;
+    });
+  }, [courseHoles, participants]);
 
 
-  const currentPar = courseHoles?.find(h => h.hole === currentHole + 1)?.par || 3;
-  const totalHoles = courseHoles?.length || 18;
+  // Don't render if courseHoles not loaded yet
+  if (!courseHoles || courseHoles.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center">
+          <p className="text-muted-foreground">Loading course data...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const currentPar = courseHoles.find(h => h.hole === currentHole + 1)?.par || 3;
+  const totalHoles = courseHoles.length;
 
   // Notify parent of current hole changes (use ref to avoid dependency issues)
   useEffect(() => {
@@ -610,7 +664,7 @@ export function MultiPlayerScoreInput({
         )}
 
         {/* Hole Details - Badge Style */}
-        <div className="flex items-center justify-center gap-2 flex-wrap">          
+        <div className="flex items-center justify-center gap-2">          
           <Badge variant="outline" className="px-4 py-2 text-base font-semibold border-2 border-green-500/30 bg-green-500/5">
             <Target className="h-4 w-4 mr-1.5 text-green-600" />
             <span className="text-green-600">Par {currentPar}</span>

@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from '@/hooks/use-toast';
 import { FriendSelector } from '@/components/FriendSelector';
-import { Cloud, MapPin, X } from 'lucide-react';
+import { Cloud, MapPin, X, Sun, CloudRain, CloudLightning, Snowflake, CloudFog, CloudDrizzle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { DialogClose } from '@/components/ui/dialog';
 
@@ -106,6 +106,29 @@ export function StartRoundModal({ course, isOpen, onClose, onStartGame }: StartR
     }
   }, [isOpen, course.latitude, course.longitude, weather, isLoadingWeather, handleFetchWeather]);
 
+  const getWeatherIcon = () => {
+    if (!weather) return null;
+    
+    const conditions = weather.conditions.toLowerCase();
+    const iconClass = "h-4 w-4 inline-block ml-1.5";
+    
+    if (conditions.includes('clear') || conditions.includes('sun')) {
+      return <Sun className={iconClass} />;
+    } else if (conditions.includes('rain') && !conditions.includes('drizzle')) {
+      return <CloudRain className={iconClass} />;
+    } else if (conditions.includes('drizzle')) {
+      return <CloudDrizzle className={iconClass} />;
+    } else if (conditions.includes('thunder') || conditions.includes('storm')) {
+      return <CloudLightning className={iconClass} />;
+    } else if (conditions.includes('snow')) {
+      return <Snowflake className={iconClass} />;
+    } else if (conditions.includes('mist') || conditions.includes('fog') || conditions.includes('haze')) {
+      return <CloudFog className={iconClass} />;
+    } else {
+      return <Cloud className={iconClass} />;
+    }
+  };
+
   const handleStartGame = () => {
     onStartGame({
       courseId: course._id,
@@ -118,7 +141,11 @@ export function StartRoundModal({ course, isOpen, onClose, onStartGame }: StartR
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[90vw] max-w-[350px] max-h-[90vh] overflow-y-auto overflow-x-hidden" showCloseButton={false}>
+      <DialogContent 
+        className="w-[90vw] max-w-[350px] max-h-[90vh] overflow-y-auto overflow-x-hidden" 
+        showCloseButton={false}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         {/* Custom close button in top left */}
         <DialogClose
           onClick={onClose}
@@ -137,7 +164,7 @@ export function StartRoundModal({ course, isOpen, onClose, onStartGame }: StartR
             <SelectTrigger className="h-10 w-[100px] ml-auto flex-shrink-0">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[10000]">
               <SelectItem value="CASUAL">Casual</SelectItem>
               <SelectItem value="PRACTICE">Practice</SelectItem>
               <SelectItem value="TOURNAMENT">Tournament</SelectItem>
@@ -158,7 +185,10 @@ export function StartRoundModal({ course, isOpen, onClose, onStartGame }: StartR
           {/* Weather Selection */}
           <Card>
             <CardHeader className="pb-1 px-4 pt-3">
-              <CardTitle className="text-base mb-0.5">Weather Conditions</CardTitle>
+              <CardTitle className="text-base mb-0.5 flex items-center">
+                Weather Conditions
+                {getWeatherIcon()}
+              </CardTitle>
               <CardDescription className="text-xs mt-0">
                 Current weather at the course
               </CardDescription>

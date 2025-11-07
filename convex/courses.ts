@@ -51,10 +51,24 @@ export const create = mutation({
 export const getHoles = query({
   args: { courseId: v.id("courses") },
   handler: async (ctx, args) => {
-    return await ctx.db
+    // Get the course to check the holes field
+    const course = await ctx.db.get(args.courseId);
+    if (!course) {
+      return [];
+    }
+    
+    const holes = await ctx.db
       .query("courseHoles")
       .withIndex("by_course", (q) => q.eq("courseId", args.courseId))
       .collect();
+    
+    // Sort holes by hole number to ensure correct order
+    const sortedHoles = holes.sort((a, b) => a.hole - b.hole);
+    
+    // Limit to the number of holes specified in the course record
+    // This ensures that if a course has 9 holes but 18 holes in the database,
+    // only the first 9 holes are returned
+    return sortedHoles.slice(0, course.holes);
   },
 });
 

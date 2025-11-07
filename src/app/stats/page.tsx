@@ -12,18 +12,24 @@ import { useState } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { PerformanceChart } from '@/components/PerformanceChart';
 import { CoursePerformanceChart } from '@/components/CoursePerformanceChart';
+import { HoleByHoleAnalysis } from '@/components/HoleByHoleAnalysis';
+import { SocialComparison } from '@/components/SocialComparison';
 import { useMutation } from 'convex/react';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
+import { ChevronDown, ChevronUp, Eye } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function StatsPage() {
   const { user, currentUser } = useCurrentUser();
+  const router = useRouter();
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
   const [timePeriod, setTimePeriod] = useState('all');
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [newGoalTarget, setNewGoalTarget] = useState(10);
+  const [recentRoundsToShow, setRecentRoundsToShow] = useState(5);
   
   const courses = useQuery(api.courses.getAll);
   const rounds = useQuery(api.rounds.getByUser, 
@@ -148,10 +154,10 @@ export default function StatsPage() {
         
         {/* Filters */}
         <div className="flex sm:flex-row gap-3">
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 flex-[2]">
             <label className="text-xs font-medium text-muted-foreground">Course</label>
             <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-              <SelectTrigger className="h-9 w-40">
+              <SelectTrigger className="h-9 w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -165,10 +171,10 @@ export default function StatsPage() {
             </Select>
           </div>
           
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 flex-1">
             <label className="text-xs font-medium text-muted-foreground">Time Period</label>
             <Select value={timePeriod} onValueChange={setTimePeriod}>
-              <SelectTrigger className="h-9 w-32">
+              <SelectTrigger className="h-9 w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -181,23 +187,21 @@ export default function StatsPage() {
           </div>
         </div>
       </div>
-      
-      {/* Quick Navigation */}
-      <div className="flex gap-2 flex-wrap">
-        <Link href="/rounds">
-          <Button variant="outline" size="sm">
-            📋 View All Rounds
-          </Button>
-        </Link>
-        <Link href="/friends">
-          <Button variant="outline" size="sm">
-            👥 Friends
-          </Button>
-        </Link>
-      </div>
+  
 
-      {/* Key Metrics */}
-      <Card>
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="holes">Hole Analysis</TabsTrigger>
+          <TabsTrigger value="social">Social</TabsTrigger>
+        </TabsList>
+
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-6">
+          {/* Key Metrics */}
+          <Card>
         <CardHeader>
           <CardTitle>Your Stats</CardTitle>
           <CardDescription>
@@ -213,10 +217,10 @@ export default function StatsPage() {
             
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">{averageRating}</div>
-              <div className="text-sm text-muted-foreground mt-1">Average PDGA Rating</div>
+              <div className="text-sm text-muted-foreground mt-1">Avg PDGA Rating</div>
               {roundsWithRatings.length < totalRounds && (
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  ({roundsWithRatings.length} of {totalRounds} rounds)
+                  ({roundsWithRatings.length} / {totalRounds} rounds)
                 </div>
               )}
             </div>
@@ -238,113 +242,162 @@ export default function StatsPage() {
         </CardContent>
       </Card>
 
-      {/* Monthly Goal */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Monthly Goal</CardTitle>
-              <CardDescription>
-                Rounds played this month: {monthlyRounds} / {goalTarget}
-              </CardDescription>
-            </div>
-            <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                  Set Goal
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Set Monthly Goal</DialogTitle>
-                  <DialogDescription>
-                    Set your target number of rounds to play this month.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="goal-target">Target Rounds</Label>
-                    <Input
-                      id="goal-target"
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={newGoalTarget}
-                      onChange={(e) => setNewGoalTarget(parseInt(e.target.value) || 10)}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setGoalDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSetGoal}>
-                    Set Goal
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Progress value={monthlyProgress} className="w-full" />
-          <div className="mt-2 text-sm text-muted-foreground">
-            {monthlyProgress.toFixed(0)}% complete
-          </div>
-          {monthlyGoal?.completed && (
-            <div className="mt-2 text-sm text-green-600 font-medium">
-              🎉 Goal achieved!
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Main Content Tabs */}
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="insights">Insights</TabsTrigger>
-        </TabsList>
-
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
-          {/* Recent Rounds */}
+          {/* Monthly Goal */}
           <Card>
             <CardHeader>
-              <CardTitle>Recent Rounds</CardTitle>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Monthly Goal</CardTitle>
+                  <CardDescription>
+                    Rounds played this month: {monthlyRounds} / {goalTarget}
+                  </CardDescription>
+                </div>
+                <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      Set Goal
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Set Monthly Goal</DialogTitle>
+                      <DialogDescription>
+                        Set your target number of rounds to play this month.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="goal-target">Target Rounds</Label>
+                        <Input
+                          id="goal-target"
+                          type="number"
+                          min="1"
+                          max="100"
+                          value={newGoalTarget}
+                          onChange={(e) => setNewGoalTarget(parseInt(e.target.value) || 10)}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setGoalDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleSetGoal}>
+                        Set Goal
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Progress value={monthlyProgress} className="w-full" />
+              <div className="mt-2 text-sm text-muted-foreground">
+                {monthlyProgress.toFixed(0)}% complete
+              </div>
+              {monthlyGoal?.completed && (
+                <div className="mt-2 text-sm text-green-600 font-medium">
+                  🎉 Goal achieved!
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Your Rounds */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Rounds</CardTitle>
               <CardDescription>
                 Your latest disc golf rounds
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              {filteredRounds && filteredRounds.length > 0 ? (
-                <div className="space-y-3">
-                  {filteredRounds.slice(0, 5).map((round) => (
-                    <div
-                      key={round._id}
-                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="text-2xl">🥏</div>
-                        <div>
-                          <div className="font-medium">
-                            {round.course?.name || 'Unknown Course'}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {new Date(round.startedAt).toLocaleDateString()} • {round.roundType}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold">
-                          {round.totalStrokes || 'N/A'}
-                        </div>
-                        <div className="text-xs text-muted-foreground">strokes</div>
-                      </div>
-                    </div>
+            {filteredRounds && filteredRounds.length > 0 && (
+              <div className="px-6 pb-4 border-b">
+                <div className="flex gap-2 flex-wrap">
+                  {Object.entries(
+                    filteredRounds.reduce((acc, round) => {
+                      acc[round.roundType] = (acc[round.roundType] || 0) + 1;
+                      return acc;
+                    }, {} as Record<string, number>)
+                  ).map(([type, count]) => (
+                    <Badge key={type} variant="secondary" className="text-xs">
+                      {type}: {count}
+                    </Badge>
                   ))}
                 </div>
+              </div>
+            )}
+            <CardContent>
+              {filteredRounds && filteredRounds.length > 0 ? (
+                <>
+                  <div className="space-y-3">
+                    {filteredRounds.slice(0, recentRoundsToShow).map((round) => (
+                      <div
+                        key={round._id}
+                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">
+                              {round.course?.name || 'Unknown Course'}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {new Date(round.startedAt).toLocaleDateString()} • {round.roundType}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <div className="text-right">
+                            <div className="text-lg font-bold">
+                              {round.totalStrokes || 'N/A'}
+                            </div>
+                            <div className="text-xs text-muted-foreground">strokes</div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/rounds/${round._id}`);
+                            }}
+                            className="h-8 w-8 p-0"
+                            title="View round details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {filteredRounds.length > 5 && (
+                    <div className="mt-4 pt-4 border-t">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (recentRoundsToShow < filteredRounds.length) {
+                            setRecentRoundsToShow(prev => Math.min(prev + 5, filteredRounds.length));
+                          } else {
+                            setRecentRoundsToShow(5);
+                          }
+                        }}
+                        className="w-full flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {recentRoundsToShow < filteredRounds.length ? (
+                          <>
+                            <span>Show {Math.min(5, filteredRounds.length - recentRoundsToShow)} More</span>
+                            <ChevronDown className="h-4 w-4" />
+                          </>
+                        ) : (
+                          <>
+                            <span>Show Less</span>
+                            <ChevronUp className="h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   No rounds found. Start playing to see your stats!
@@ -352,33 +405,6 @@ export default function StatsPage() {
               )}
             </CardContent>
           </Card>
-
-          {/* Round Types Breakdown */}
-          {filteredRounds && filteredRounds.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Round Types</CardTitle>
-                <CardDescription>
-                  Breakdown of your rounds by type
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {Object.entries(
-                    filteredRounds.reduce((acc, round) => {
-                      acc[round.roundType] = (acc[round.roundType] || 0) + 1;
-                      return acc;
-                    }, {} as Record<string, number>)
-                  ).map(([type, count]) => (
-                    <div key={type} className="flex justify-between items-center">
-                      <Badge variant="secondary">{type}</Badge>
-                      <span className="font-medium">{count} rounds</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
         {/* Analytics Tab */}
@@ -394,7 +420,7 @@ export default function StatsPage() {
             <CardHeader>
               <CardTitle>Performance Trends</CardTitle>
               <CardDescription>
-                How you're improving over time
+                See how you're improving over time
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -481,75 +507,25 @@ export default function StatsPage() {
           )}
         </TabsContent>
 
-        {/* Insights Tab */}
-        <TabsContent value="insights" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Performance Insights</CardTitle>
-              <CardDescription>
-                AI-powered insights about your game
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {totalRounds === 0 ? (
-                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                    <div className="font-medium text-gray-800">📈 Start Playing!</div>
-                    <div className="text-sm text-gray-700">
-                      Play some rounds to see personalized insights about your disc golf performance.
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {improvement > 5 && (
-                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="font-medium text-green-800">🎉 Great Improvement!</div>
-                        <div className="text-sm text-green-700">
-                          You've improved by {improvement.toFixed(1)}% in your recent rounds. Keep up the great work!
-                        </div>
-                      </div>
-                    )}
-                    
-                    {totalRounds >= 10 && (
-                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="font-medium text-blue-800">📊 Consistent Player</div>
-                        <div className="text-sm text-blue-700">
-                          You've played {totalRounds} rounds, showing great dedication to the sport!
-                        </div>
-                      </div>
-                    )}
-                    
-                    {bestScore < 50 && bestScore > 0 && (
-                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <div className="font-medium text-yellow-800">🏆 Excellent Performance</div>
-                        <div className="text-sm text-yellow-700">
-                          Your best score of {bestScore} is impressive! You're playing at a high level.
-                        </div>
-                      </div>
-                    )}
+        {/* Hole-by-Hole Analysis Tab */}
+        <TabsContent value="holes" className="space-y-6">
+          <HoleByHoleAnalysis rounds={filteredRounds as any} />
+        </TabsContent>
 
-                    {totalRounds > 0 && totalRounds < 5 && (
-                      <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                        <div className="font-medium text-purple-800">🌱 Getting Started</div>
-                        <div className="text-sm text-purple-700">
-                          You've played {totalRounds} rounds. Play a few more to unlock detailed insights!
-                        </div>
-                      </div>
-                    )}
-
-                    {worstScore > 0 && (
-                      <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                        <div className="font-medium text-orange-800">🎯 Room for Improvement</div>
-                        <div className="text-sm text-orange-700">
-                          Your worst score was {worstScore}. Focus on consistency to lower your average!
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+        {/* Social Comparison Tab */}
+        <TabsContent value="social" className="space-y-6">
+          {currentUser && (
+            <SocialComparison
+              currentUserId={currentUser._id}
+              currentUserRounds={filteredRounds}
+              currentUserStats={{
+                totalRounds,
+                averageScore: parseFloat(averageScore),
+                bestScore: bestScore === Infinity ? 0 : bestScore,
+                averageRating: roundsWithRatings.length > 0 ? Math.round(totalRatings / roundsWithRatings.length) : 0,
+              }}
+            />
+          )}
         </TabsContent>
       </Tabs>
       </div>
