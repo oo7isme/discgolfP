@@ -128,7 +128,7 @@ export default function Home() {
 
   if (!isLoaded || (user && rounds === undefined)) {
     return (
-      <main className="h-[calc(100vh-4rem)] flex flex-col p-3 bg-background overflow-hidden">
+      <main className="h-[calc(100vh-4rem)] flex flex-col p-3 bg-background overflow-y-auto">
         <div className="text-center py-3 flex-shrink-0">
           <div className="flex justify-center mb-2">
             <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
@@ -154,7 +154,7 @@ export default function Home() {
 
   if (!user) {
     return (
-      <main className="h-dvh flex flex-col items-center justify-center p-6 bg-background overflow-hidden">
+      <main className="h-dvh flex flex-col items-center justify-center p-6 bg-background overflow-y-auto">
         <div className="w-full max-w-md space-y-8 text-center">
           {/* Logo */}
           <div className="flex justify-center">
@@ -213,7 +213,7 @@ export default function Home() {
   }
 
   return (
-    <main className="h-[calc(100vh-4rem)] flex flex-col p-3 bg-background overflow-hidden">
+    <main className="h-[calc(100vh-4rem)] flex flex-col p-3 bg-background overflow-y-auto">
       {/* Header */}
       <div className="text-center py-3 flex-shrink-0">
         <div className="flex justify-center mb-2">

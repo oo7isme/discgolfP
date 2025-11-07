@@ -80,7 +80,7 @@ export default function NewGamePage() {
     return (
     <div className="p-3 space-y-4">
       <div className="text-center">
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">New Round</h1>
+        <h1 className="text-3xl font-bold text-[var(--foreground)]">New Round</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
           Choose a course and start your disc golf round
         </p>

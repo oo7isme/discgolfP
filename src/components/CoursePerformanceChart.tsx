@@ -104,9 +104,9 @@ export function CoursePerformanceChart({ rounds }: CoursePerformanceChartProps) 
           </CardDescription>
         </CardHeader>
       <CardContent>
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 80 }}>
+        <div className="h-64 w-full" style={{ minHeight: '256px', minWidth: '0' }}>
+          <ResponsiveContainer width="100%" height={256} minWidth={256} minHeight={256}>
+            <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 30 }}>
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
               <XAxis 
                 dataKey="course" 
@@ -120,7 +120,11 @@ export function CoursePerformanceChart({ rounds }: CoursePerformanceChartProps) 
               <YAxis 
                 tick={{ fontSize: 12 }}
                 tickLine={{ stroke: 'currentColor', opacity: 0.3 }}
-                domain={['dataMin - 5', 'dataMax + 5']}
+                domain={(dataMin, dataMax) => {
+                  const min = typeof dataMin === 'number' && !isNaN(dataMin) ? dataMin - 5 : -10;
+                  const max = typeof dataMax === 'number' && !isNaN(dataMax) ? dataMax + 5 : 10;
+                  return [min, max];
+                }}
                 label={{ value: 'Score to Par', angle: -90, position: 'insideLeft' }}
               />
               <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />

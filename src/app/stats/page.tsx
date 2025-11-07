@@ -19,13 +19,17 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
+import { ChevronDown, ChevronUp, Eye } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function StatsPage() {
   const { user, currentUser } = useCurrentUser();
+  const router = useRouter();
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
   const [timePeriod, setTimePeriod] = useState('all');
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [newGoalTarget, setNewGoalTarget] = useState(10);
+  const [recentRoundsToShow, setRecentRoundsToShow] = useState(5);
   
   const courses = useQuery(api.courses.getAll);
   const rounds = useQuery(api.rounds.getByUser, 
@@ -150,10 +154,10 @@ export default function StatsPage() {
         
         {/* Filters */}
         <div className="flex sm:flex-row gap-3">
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 flex-[2]">
             <label className="text-xs font-medium text-muted-foreground">Course</label>
             <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-              <SelectTrigger className="h-9 w-40">
+              <SelectTrigger className="h-9 w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -167,10 +171,10 @@ export default function StatsPage() {
             </Select>
           </div>
           
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 flex-1">
             <label className="text-xs font-medium text-muted-foreground">Time Period</label>
             <Select value={timePeriod} onValueChange={setTimePeriod}>
-              <SelectTrigger className="h-9 w-32">
+              <SelectTrigger className="h-9 w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -183,24 +187,11 @@ export default function StatsPage() {
           </div>
         </div>
       </div>
-      
-      {/* Quick Navigation */}
-      <div className="flex gap-2 flex-wrap">
-        <Link href="/rounds">
-          <Button variant="outline" size="sm">
-            📋 View All Rounds
-          </Button>
-        </Link>
-        <Link href="/friends">
-          <Button variant="outline" size="sm">
-            👥 Friends
-          </Button>
-        </Link>
-      </div>
+  
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-4 mb-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="holes">Hole Analysis</TabsTrigger>
@@ -226,10 +217,10 @@ export default function StatsPage() {
             
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">{averageRating}</div>
-              <div className="text-sm text-muted-foreground mt-1">Average PDGA Rating</div>
+              <div className="text-sm text-muted-foreground mt-1">Avg PDGA Rating</div>
               {roundsWithRatings.length < totalRounds && (
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  ({roundsWithRatings.length} of {totalRounds} rounds)
+                  ({roundsWithRatings.length} / {totalRounds} rounds)
                 </div>
               )}
             </div>
@@ -312,42 +303,101 @@ export default function StatsPage() {
             </CardContent>
           </Card>
 
-          {/* Recent Rounds */}
+          {/* Your Rounds */}
           <Card>
             <CardHeader>
-              <CardTitle>Recent Rounds</CardTitle>
+              <CardTitle>Your Rounds</CardTitle>
               <CardDescription>
                 Your latest disc golf rounds
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              {filteredRounds && filteredRounds.length > 0 ? (
-                <div className="space-y-3">
-                  {filteredRounds.slice(0, 5).map((round) => (
-                    <div
-                      key={round._id}
-                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="text-2xl">🥏</div>
-                        <div>
-                          <div className="font-medium">
-                            {round.course?.name || 'Unknown Course'}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {new Date(round.startedAt).toLocaleDateString()} • {round.roundType}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold">
-                          {round.totalStrokes || 'N/A'}
-                        </div>
-                        <div className="text-xs text-muted-foreground">strokes</div>
-                      </div>
-                    </div>
+            {filteredRounds && filteredRounds.length > 0 && (
+              <div className="px-6 pb-4 border-b">
+                <div className="flex gap-2 flex-wrap">
+                  {Object.entries(
+                    filteredRounds.reduce((acc, round) => {
+                      acc[round.roundType] = (acc[round.roundType] || 0) + 1;
+                      return acc;
+                    }, {} as Record<string, number>)
+                  ).map(([type, count]) => (
+                    <Badge key={type} variant="secondary" className="text-xs">
+                      {type}: {count}
+                    </Badge>
                   ))}
                 </div>
+              </div>
+            )}
+            <CardContent>
+              {filteredRounds && filteredRounds.length > 0 ? (
+                <>
+                  <div className="space-y-3">
+                    {filteredRounds.slice(0, recentRoundsToShow).map((round) => (
+                      <div
+                        key={round._id}
+                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">
+                              {round.course?.name || 'Unknown Course'}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {new Date(round.startedAt).toLocaleDateString()} • {round.roundType}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <div className="text-right">
+                            <div className="text-lg font-bold">
+                              {round.totalStrokes || 'N/A'}
+                            </div>
+                            <div className="text-xs text-muted-foreground">strokes</div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/rounds/${round._id}`);
+                            }}
+                            className="h-8 w-8 p-0"
+                            title="View round details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {filteredRounds.length > 5 && (
+                    <div className="mt-4 pt-4 border-t">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (recentRoundsToShow < filteredRounds.length) {
+                            setRecentRoundsToShow(prev => Math.min(prev + 5, filteredRounds.length));
+                          } else {
+                            setRecentRoundsToShow(5);
+                          }
+                        }}
+                        className="w-full flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {recentRoundsToShow < filteredRounds.length ? (
+                          <>
+                            <span>Show {Math.min(5, filteredRounds.length - recentRoundsToShow)} More</span>
+                            <ChevronDown className="h-4 w-4" />
+                          </>
+                        ) : (
+                          <>
+                            <span>Show Less</span>
+                            <ChevronUp className="h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   No rounds found. Start playing to see your stats!
@@ -355,33 +405,6 @@ export default function StatsPage() {
               )}
             </CardContent>
           </Card>
-
-          {/* Round Types Breakdown */}
-          {filteredRounds && filteredRounds.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Round Types</CardTitle>
-                <CardDescription>
-                  Breakdown of your rounds by type
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {Object.entries(
-                    filteredRounds.reduce((acc, round) => {
-                      acc[round.roundType] = (acc[round.roundType] || 0) + 1;
-                      return acc;
-                    }, {} as Record<string, number>)
-                  ).map(([type, count]) => (
-                    <div key={type} className="flex justify-between items-center">
-                      <Badge variant="secondary">{type}</Badge>
-                      <span className="font-medium">{count} rounds</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
         {/* Analytics Tab */}
@@ -397,7 +420,7 @@ export default function StatsPage() {
             <CardHeader>
               <CardTitle>Performance Trends</CardTitle>
               <CardDescription>
-                How you're improving over time
+                See how you're improving over time
               </CardDescription>
             </CardHeader>
             <CardContent>
