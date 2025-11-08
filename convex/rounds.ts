@@ -282,6 +282,14 @@ export const create = mutation({
       hole: v.number(),
       strokes: v.number(),
     })),
+    weather: v.optional(v.object({
+      temperature: v.optional(v.number()),
+      windSpeed: v.optional(v.number()),
+      windDirection: v.optional(v.string()),
+      conditions: v.optional(v.string()),
+      humidity: v.optional(v.number()),
+      pressure: v.optional(v.number()),
+    })),
   },
   handler: async (ctx, args) => {
     const roundId = await ctx.db.insert("rounds", {
@@ -298,6 +306,13 @@ export const create = mutation({
         roundId,
         hole: score.hole,
         strokes: score.strokes,
+      });
+    }
+
+    if (args.weather) {
+      await ctx.db.insert("weather", {
+        roundId,
+        ...args.weather,
       });
     }
 

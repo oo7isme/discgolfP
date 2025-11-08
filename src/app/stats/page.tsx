@@ -45,7 +45,7 @@ export default function StatsPage() {
   const setMonthlyGoal = useMutation(api.goals.setMonthlyRoundsGoal);
 
   // Filter rounds by course and time period
-  const filteredRounds = rounds?.filter(round => {
+  const filteredRoundsUnsorted = rounds?.filter(round => {
     // Course filter
     const courseMatch = selectedCourse === 'all' || round.courseId === selectedCourse;
     
@@ -75,6 +75,7 @@ export default function StatsPage() {
     
     return courseMatch && timeMatch;
   }) || [];
+  const filteredRounds = [...filteredRoundsUnsorted].sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
 
   // Calculate stats
   const totalRounds = filteredRounds.length;

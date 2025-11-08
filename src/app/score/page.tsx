@@ -49,6 +49,8 @@ function ScorePageContent() {
   const [currentHole, setCurrentHole] = useState(1);
   const [showRecap, setShowRecap] = useState(false);
   const [savedRoundId, setSavedRoundId] = useState<string | null>(null);
+  const [userDistanceToBasket, setUserDistanceToBasket] = useState<number | null>(null);
+  const [isUserNearBasket, setIsUserNearBasket] = useState<boolean>(false);
 
   // Queries
   const course = useQuery(api.courses.getById, courseId ? { id: courseId as any } : "skip");
@@ -128,11 +130,14 @@ function ScorePageContent() {
           strokes: playerScores[index] || hole.par,
         })) || [];
 
-        const roundId = await createRound({
+        const roundInput = {
           userId: currentUser._id,
           courseId: courseId as any,
           scores: roundScores,
-        });
+          ...(weather ? { weather } : {}),
+        };
+
+        const roundId = await createRound(roundInput);
 
         setSavedRoundId(roundId);
         setShowRecap(true);
@@ -261,6 +266,8 @@ function ScorePageContent() {
                 coursePar={courseHoles.reduce((sum: number, hole: { hole: number; par: number }) => sum + hole.par, 0)}
                 scores={scores['you']}
                 courseHoles={courseHoles}
+                userToBasketDistance={userDistanceToBasket}
+            isUserNearBasket={isUserNearBasket}
               />
             </div>
           )}
@@ -276,6 +283,8 @@ function ScorePageContent() {
                 onRoundComplete={handleRoundComplete}
                 onCurrentHoleChange={setCurrentHole}
                 initialCurrentHole={currentHole}
+                onUserDistanceUpdate={setUserDistanceToBasket}
+                onIsUserNearBasketUpdate={setIsUserNearBasket}
               />
             </div>
           )}

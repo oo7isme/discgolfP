@@ -7,6 +7,62 @@ import { Progress } from '@/components/ui/progress';
 import { Brain, TrendingUp, TrendingDown, AlertCircle, CheckCircle, Lightbulb } from 'lucide-react';
 import DgBasketIcon from '@/components/DgBasketIcon';
 
+type DistanceCategory = "long" | "fairway" | "approach" | "circleTwo" | "circleOne" | "tapIn";
+
+interface DistanceAdviceContext {
+  distance: number;
+  par: number;
+  holeDistance: number | null;
+}
+
+const getDistanceCategory = (distance: number): DistanceCategory => {
+  if (distance > 160) return "long";
+  if (distance > 110) return "fairway";
+  if (distance > 60) return "approach";
+  if (distance > 35) return "circleTwo";
+  if (distance > 15) return "circleOne";
+  return "tapIn";
+};
+
+const distanceAdviceTemplates: Record<DistanceCategory, ((ctx: DistanceAdviceContext) => string)[]> = {
+  long: [
+    ({ distance, par, holeDistance }) =>
+      `You're still ${distance}m out. Play a measured shot that keeps you in bounds and sets up an easy angle on this par ${par}.`,
+    ({ distance, holeDistance }) =>
+      `${distance}m remaining. Focus on placement—land in a landing zone that opens the green${holeDistance ? ` for this ${holeDistance}m hole` : ""}.`,
+  ],
+  fairway: [
+    ({ distance }) =>
+      `${distance}m left. Smooth tempo and balanced follow-through—let the disc do the work.`,
+    ({ distance, par }) =>
+      `${distance}m to go. A controlled fairway shot keeps birdie in play on this par ${par}.`,
+  ],
+  approach: [
+    ({ distance }) =>
+      `${distance}m out. Aim for a safe landing zone on the high side to avoid rollaways.`,
+    ({ distance }) =>
+      `Only ${distance}m remaining. Commit to your release point and leave a stress-free putt.`,
+  ],
+  circleTwo: [
+    ({ distance }) =>
+      `${distance}m—circle two look. Give it height, but respect the comeback putt.`,
+    ({ distance }) =>
+      `${distance}m away. Choose a confident line or chip it close if you're not feeling the long putt.`,
+  ],
+  circleOne: [
+    ({ distance }) =>
+      `${distance}m—inside the circle. Breathe, pick a chain link and commit.`,
+    ({ distance }) =>
+      `${distance}m left. Smooth spin, nose flat, and follow through toward the target.`,
+  ],
+  tapIn: [
+    ({ distance }) =>
+      `${distance}m—tap-in territory! Take the easy par (or birdie) and walk to the next tee smiling.`,
+    ({ distance }) =>
+      `Just ${distance}m. Centre the putter, knock it down, and keep the momentum rolling.`,
+  ],
+};
+
 interface CaddyAssistantProps {
   currentHole: number;
   totalHoles: number;
@@ -14,6 +70,8 @@ interface CaddyAssistantProps {
   coursePar: number;
   scores: { [hole: number]: number };
   courseHoles: Array<{ hole: number; par: number; distanceMeters?: number }>;
+  userToBasketDistance?: number | null;
+  isUserNearBasket?: boolean;
 }
 
 function CaddyAssistantComponent({ 
@@ -22,7 +80,9 @@ function CaddyAssistantComponent({
   currentScore, 
   coursePar, 
   scores, 
-  courseHoles 
+  courseHoles,
+  userToBasketDistance,
+  isUserNearBasket
 }: CaddyAssistantProps) {
   const [advice, setAdvice] = useState<string>("");
   const [adviceType, setAdviceType] = useState<'positive' | 'warning' | 'neutral' | 'motivational' | 'ace'>('neutral');
@@ -78,6 +138,10 @@ function CaddyAssistantComponent({
     // Create a hash-like numeric ID from the state values
     const safeScores = scoresString || '';
     const safeHoles = courseHolesString || '';
+    const distanceBucket =
+      userToBasketDistance != null && isUserNearBasket
+        ? getDistanceCategory(Math.round(userToBasketDistance))
+        : 'none';
     // Simple hash function to create a numeric ID
     const hash = (str: string) => {
       let hash = 0;
@@ -88,9 +152,9 @@ function CaddyAssistantComponent({
       }
       return hash;
     };
-    const combined = `${currentHole}-${currentScore}-${coursePar}-${totalHoles}-${safeScores}-${safeHoles}`;
+    const combined = `${currentHole}-${currentScore}-${coursePar}-${totalHoles}-${safeScores}-${safeHoles}-${distanceBucket}`;
     return hash(combined);
-  }, [currentHole, currentScore, coursePar, totalHoles, scoresString, courseHolesString]);
+  }, [currentHole, currentScore, coursePar, totalHoles, scoresString, courseHolesString, userToBasketDistance]);
 
   useEffect(() => {
     // Early return if we don't have the necessary data
@@ -115,8 +179,13 @@ function CaddyAssistantComponent({
     // Calculate advice directly in useEffect (no nested function)
     // Count only holes that have been actually played (not just pre-filled with par)
     // We'll use the currentHole prop which represents the actual hole being played
-    const holesPlayed = Math.max(0, currentHole - 1);
-    const holesRemaining = totalHoles - holesPlayed;
+    const normalizedHoleNumber = Math.max(1, Math.min(currentHole, currentCourseHoles.length));
+    const holesPlayed = Math.max(0, normalizedHoleNumber - 1);
+    const holesRemaining = totalHoles - normalizedHoleNumber;
+    const currentHoleIndex = Math.max(0, Math.min(normalizedHoleNumber - 1, currentCourseHoles.length - 1));
+    const currentHoleData = currentCourseHoles[currentHoleIndex];
+    const currentHolePar = currentHoleData?.par ?? 3;
+    const holeDistanceMeters = currentHoleData?.distanceMeters ?? null;
     
     // Calculate current score to par more accurately
     // We need to sum the par for holes 1 through holesPlayed (1-based)
@@ -125,9 +194,6 @@ function CaddyAssistantComponent({
     
     const averagePerHole = holesPlayed > 0 ? currentScore / holesPlayed : 0;
     
-    // Get current hole par (next hole to be played)
-    const currentHolePar = currentCourseHoles[currentHole - 1]?.par || 3;
-    
     // Recent performance analysis - only use actually played holes
     const playedScores = Object.values(currentScores || {}).slice(0, holesPlayed);
     const recentScores = playedScores.slice(-3);
@@ -135,8 +201,8 @@ function CaddyAssistantComponent({
     const isImproving = recentScores.length >= 2 && recentScores[recentScores.length - 1] < recentScores[recentScores.length - 2];
 
     // Check for ace (hole-in-one) on current hole
-    const currentHoleScore = (currentScores || {})[currentHole - 1] || 0;
-    const aceHolePar = currentCourseHoles[currentHole - 1]?.par || 3;
+    const currentHoleScore = (currentScores || {})[currentHoleIndex] || 0;
+    const aceHolePar = currentHolePar;
     
     if (currentHoleScore === 1 && aceHolePar > 1) {
       newAdvice = `🎉 ACE! HOLE-IN-ONE! 🎉 Incredible shot on this ${aceHolePar}-par hole!`;
@@ -203,8 +269,7 @@ function CaddyAssistantComponent({
       newIcon = TrendingUp;
     } else if (currentScoreToPar > 0) {
       // Add specific advice based on hole characteristics
-      const currentHoleData = currentCourseHoles[currentHole - 1];
-      const distance = currentHoleData?.distanceMeters || 0;
+      const distance = holeDistanceMeters || 0;
       
       let specificAdvice = "";
       if (currentHolePar === 3) {
@@ -232,6 +297,35 @@ function CaddyAssistantComponent({
       newIcon = TrendingUp;
     }
     
+    if (isUserNearBasket && userToBasketDistance != null && Number.isFinite(userToBasketDistance)) {
+      const distanceMeters = Math.round(userToBasketDistance);
+      const distanceCategory = getDistanceCategory(distanceMeters);
+      const templates = distanceAdviceTemplates[distanceCategory];
+
+      if (templates && templates.length > 0) {
+        const variantIndex = Math.abs((currentHoleIndex + distanceMeters) % templates.length);
+        const distanceTip = templates[variantIndex]({
+          distance: distanceMeters,
+          par: currentHolePar,
+          holeDistance: holeDistanceMeters,
+        });
+
+        if (distanceTip) {
+          newAdvice = newAdvice ? `${newAdvice} ${distanceTip}`.trim() : distanceTip;
+        }
+      }
+
+      if (distanceCategory === "circleOne" || distanceCategory === "tapIn") {
+        if (newAdviceType !== 'ace') {
+          newAdviceType = 'positive';
+          newIcon = CheckCircle;
+        }
+      } else if (distanceCategory === "long" && newAdviceType === 'neutral') {
+        newAdviceType = 'motivational';
+        newIcon = Lightbulb;
+      }
+    }
+
     // Only update state if values actually changed to prevent unnecessary re-renders
     // This check prevents the infinite loop by ensuring we don't update state with the same values
     // Use refs to check current values without adding them to the dependency array
@@ -306,6 +400,14 @@ function CaddyAssistantComponent({
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
+        {isUserNearBasket && userToBasketDistance != null && (
+          <div className="mb-3 flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Distance to basket</span>
+            <Badge variant="outline" className="border-purple-200 text-purple-700">
+              {Math.round(userToBasketDistance)} m
+            </Badge>
+          </div>
+        )}
         <div className="flex items-start gap-1">
           {React.createElement(IconComponent, { className: `h-5 w-5 mt-0.5 flex-shrink-0 ${getIconColor()}` })}
           <p className="text-sm leading-relaxed">{advice || "Welcome to the course! Start strong and stay focused. You've got this! 🎯"}</p>
@@ -346,6 +448,8 @@ export const CaddyAssistant = React.memo(CaddyAssistantComponent, (prevProps, ne
   const prevHolesStr = JSON.stringify((prevProps.courseHoles || []).map(h => ({ hole: h.hole, par: h.par })));
   const nextHolesStr = JSON.stringify((nextProps.courseHoles || []).map(h => ({ hole: h.hole, par: h.par })));
   if (prevHolesStr !== nextHolesStr) return false;
+
+  if ((prevProps.userToBasketDistance ?? null) !== (nextProps.userToBasketDistance ?? null)) return false;
   
   // Props are equal, skip re-render
   return true;

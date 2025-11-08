@@ -31,6 +31,8 @@ interface MultiPlayerScoreInputProps {
   onRoundComplete?: (isComplete: boolean) => void;
   onCurrentHoleChange?: (currentHole: number) => void;
   initialCurrentHole?: number; // 1-based hole number from parent
+  onUserDistanceUpdate?: (distance: number | null) => void;
+  onIsUserNearBasketUpdate?: (isNear: boolean) => void;
 }
 
 export function MultiPlayerScoreInput({ 
@@ -40,7 +42,9 @@ export function MultiPlayerScoreInput({
   onScoresChange,
   onRoundComplete,
   onCurrentHoleChange,
-  initialCurrentHole = 1
+  initialCurrentHole = 1,
+  onUserDistanceUpdate,
+  onIsUserNearBasketUpdate,
 }: MultiPlayerScoreInputProps) {
   // Convert 1-based initialCurrentHole to 0-based index
   const [currentHole, setCurrentHole] = useState(initialCurrentHole - 1);
@@ -48,12 +52,16 @@ export function MultiPlayerScoreInput({
   // Use refs to track callbacks to avoid dependency issues
   const onCurrentHoleChangeRef = useRef(onCurrentHoleChange);
   const onRoundCompleteRef = useRef(onRoundComplete);
+  const onUserDistanceUpdateRef = useRef(onUserDistanceUpdate);
+  const onIsUserNearBasketUpdateRef = useRef(onIsUserNearBasketUpdate);
   
   // Keep refs in sync with props
   useEffect(() => {
     onCurrentHoleChangeRef.current = onCurrentHoleChange;
     onRoundCompleteRef.current = onRoundComplete;
-  }, [onCurrentHoleChange, onRoundComplete]);
+    onUserDistanceUpdateRef.current = onUserDistanceUpdate;
+    onIsUserNearBasketUpdateRef.current = onIsUserNearBasketUpdate;
+  }, [onCurrentHoleChange, onRoundComplete, onUserDistanceUpdate, onIsUserNearBasketUpdate]);
   
   // Sync with parent's currentHole when it changes
   // Only depend on initialCurrentHole and courseHoles, not currentHole itself
@@ -300,6 +308,20 @@ export function MultiPlayerScoreInput({
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }, [userLocation, basketLocation]);
+
+  const isUserNearBasket = useMemo(() => {
+    if (userToBasketDistance == null) return false;
+    return userToBasketDistance <= 500;
+  }, [userToBasketDistance]);
+
+  useEffect(() => {
+    if (onUserDistanceUpdateRef.current) {
+      onUserDistanceUpdateRef.current(userToBasketDistance);
+    }
+    if (onIsUserNearBasketUpdateRef.current) {
+      onIsUserNearBasketUpdateRef.current(isUserNearBasket);
+    }
+  }, [userToBasketDistance, isUserNearBasket]);
 
   // Track location watch ID for cleanup
   const watchIdRef = useRef<number | null>(null);

@@ -2,15 +2,17 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Polyline, useMap, Circle } from "react-leaflet";
+import type { Map } from "leaflet";
 import { Icon, LatLng, LatLngBounds } from "leaflet";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { MapPin, Target, Layers } from "lucide-react";
 import { getHolePath } from "@/lib/holePaths";
+import "leaflet-rotate";
 
 // Fix for default marker icons in React Leaflet
 const createCustomIcon = (color: string) => {
@@ -30,11 +32,42 @@ const createCustomIcon = (color: string) => {
 const userIcon = createCustomIcon("#3b82f6");
 const basketIcon = createCustomIcon("#ef4444");
 
+const toRadians = (deg: number) => (deg * Math.PI) / 180;
+const toDegrees = (rad: number) => (rad * 180) / Math.PI;
+
+const computeBearing = (
+  start: { lat: number; lon: number },
+  end: { lat: number; lon: number }
+): number => {
+  const φ1 = toRadians(start.lat);
+  const φ2 = toRadians(end.lat);
+  const Δλ = toRadians(end.lon - start.lon);
+
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x =
+    Math.cos(φ1) * Math.sin(φ2) -
+    Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+
+  const θ = Math.atan2(y, x);
+  return (toDegrees(θ) + 360) % 360;
+};
+
 interface DiscGolfMapProps {
   courseId: string;
   holeNumber: number;
   className?: string;
 }
+
+const MapLoadingFallback = () => (
+  <Card className="h-full">
+    <CardContent className="p-4 flex items-center justify-center h-full">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
+        <p className="text-xs text-muted-foreground">Loading map…</p>
+      </div>
+    </CardContent>
+  </Card>
+);
 
 // Component to handle map initialization and size updates
 function MapInitializer() {
@@ -145,6 +178,30 @@ function MapSizeUpdater() {
   return null;
 }
 
+function MapRotationController({ angle, center }: { angle: number; center: { lat: number; lon: number } | null }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map) return;
+    const rotatableMap = map as Map & {
+      setBearing?: (bearing: number) => void;
+      options: Record<string, unknown>;
+    };
+
+    if (typeof rotatableMap.setBearing === "function") {
+      if (!rotatableMap.options.rotate) {
+        rotatableMap.options.rotate = true;
+      }
+      rotatableMap.setBearing(angle);
+      if (center) {
+        rotatableMap.setView([center.lat, center.lon], rotatableMap.getZoom(), { animate: false });
+      }
+    }
+  }, [map, angle, center]);
+
+  return null;
+}
+
 // Component to handle user location tracking
 function LocationTracker({ onLocationUpdate }: { onLocationUpdate: (lat: number, lon: number, accuracy: number) => void }) {
   const map = useMap();
@@ -208,12 +265,14 @@ function MapBoundsFit({
   teeLocation, 
   basketLocation, 
   userLocation,
-  holePath
+  holePath,
+  rotationAngle
 }: { 
   teeLocation: { lat: number; lon: number } | null;
   basketLocation: { lat: number; lon: number } | null;
   userLocation: { lat: number; lon: number } | null;
   holePath: [number, number][] | null;
+  rotationAngle: number;
 }) {
   const map = useMap();
 
@@ -247,14 +306,14 @@ function MapBoundsFit({
     if (bounds.length >= 2) {
       const boundsObject = new LatLngBounds(bounds);
       map.fitBounds(boundsObject, { 
-        padding: [50, 50],
-        maxZoom: 19
+        padding: [120, 120],
+        maxZoom: 18
       });
     } else if (bounds.length === 1) {
       // If only one point, center on it with appropriate zoom
-      map.setView(bounds[0], 18);
+      map.setView(bounds[0], 17);
     }
-  }, [map, teeLocation, basketLocation, userLocation, holePath]);
+  }, [map, teeLocation, basketLocation, userLocation, holePath, rotationAngle]);
 
   return null;
 }
@@ -303,6 +362,8 @@ export default function DiscGolfMap({ courseId, holeNumber, className = "" }: Di
   const [mapError, setMapError] = useState<string | null>(null);
   const [mapLayer, setMapLayer] = useState<'standard' | 'satellite'>('satellite');
 
+  const mapRef = useRef<Map | null>(null);
+
   // Debug logging
   useEffect(() => {
     console.log('DiscGolfMap mounted', { courseId, holeNumber, mapCenter });
@@ -329,6 +390,36 @@ export default function DiscGolfMap({ courseId, holeNumber, className = "" }: Di
     if (!currentHoleData || !currentHoleData.basketLat || !currentHoleData.basketLon) return null;
     return { lat: currentHoleData.basketLat, lon: currentHoleData.basketLon };
   }, [currentHoleData]);
+
+const holeMidpoint = useMemo(() => {
+  if (!teePosition || !basketLocation) return null;
+  if (userLocation) {
+    const distanceToHole = computeBearing(
+      { lat: userLocation.lat, lon: userLocation.lon },
+      { lat: basketLocation.lat, lon: basketLocation.lon }
+    );
+    // If user distance is beyond 500m, keep the map centered without offset.
+    const distanceMeters = calculateDistance(
+      userLocation.lat,
+      userLocation.lon,
+      basketLocation.lat,
+      basketLocation.lon
+    );
+    if (distanceMeters > 500) {
+      return {
+        lat: (teePosition.lat + basketLocation.lat) / 2,
+        lon: (teePosition.lon + basketLocation.lon) / 2,
+      };
+    }
+  }
+  const deltaLat = Math.abs(teePosition.lat - basketLocation.lat);
+  const offset = deltaLat * 0.25; // shift 25% of the lat distance upwards
+
+  return {
+    lat: (teePosition.lat + basketLocation.lat) / 2 + offset,
+    lon: (teePosition.lon + basketLocation.lon) / 2,
+  };
+}, [teePosition, basketLocation]);
 
   // Load basket from course data only (read-only, users cannot modify)
   useEffect(() => {
@@ -433,14 +524,27 @@ export default function DiscGolfMap({ courseId, holeNumber, className = "" }: Di
   useEffect(() => {
     if (!mapInitialized) return;
 
-    if (teePosition) {
-      setMapCenter([teePosition.lat, teePosition.lon]);
+    if (holeMidpoint) {
+      setMapCenter([holeMidpoint.lat, holeMidpoint.lon]);
     } else if (userLocation) {
       setMapCenter([userLocation.lat, userLocation.lon]);
+    } else if (teePosition) {
+      setMapCenter([teePosition.lat, teePosition.lon]);
     } else if (basketLocation) {
       setMapCenter([basketLocation.lat, basketLocation.lon]);
     }
-  }, [teePosition, userLocation, basketLocation, mapInitialized]);
+  }, [holeMidpoint, userLocation, teePosition, basketLocation, mapInitialized]);
+
+  useEffect(() => {
+    if (mapInitialized) return;
+    if (holeMidpoint) {
+      setMapCenter([holeMidpoint.lat, holeMidpoint.lon]);
+    } else if (teePosition) {
+      setMapCenter([teePosition.lat, teePosition.lon]);
+    } else if (basketLocation) {
+      setMapCenter([basketLocation.lat, basketLocation.lon]);
+    }
+  }, [holeMidpoint, teePosition, basketLocation, mapInitialized]);
 
   // Get the actual hole path from GeoJSON (curved/dogleg paths)
   const holePath = useMemo(() => {
@@ -456,6 +560,16 @@ export default function DiscGolfMap({ courseId, holeNumber, className = "" }: Di
       [basketLocation.lat, basketLocation.lon] as [number, number],
     ];
   }, [userLocation, teePosition, basketLocation]);
+
+const mapRotationAngle = useMemo(() => {
+  if (!teePosition || !basketLocation) return 0;
+  const bearing = computeBearing(
+    { lat: teePosition.lat, lon: teePosition.lon },
+    { lat: basketLocation.lat, lon: basketLocation.lon }
+  );
+  if (!Number.isFinite(bearing)) return 0;
+  return (360 - bearing + 360) % 360;
+}, [teePosition, basketLocation]);
 
   if (typeof window === "undefined") {
     return (
@@ -503,9 +617,23 @@ export default function DiscGolfMap({ courseId, holeNumber, className = "" }: Di
       <MapContainer
         center={mapCenter}
         zoom={18}
+        whenCreated={(mapInstance: Map) => {
+          mapRef.current = mapInstance;
+          const rotatableMap = mapInstance as Map & {
+            setBearing?: (bearing: number) => void;
+            options: Record<string, unknown>;
+          };
+          if (!rotatableMap.options.rotate) {
+            rotatableMap.options.rotate = true;
+          }
+          if (typeof rotatableMap.setBearing === "function") {
+            rotatableMap.setBearing(mapRotationAngle);
+          }
+        }}
         style={{ height: "100%", width: "100%", zIndex: 0, minHeight: '400px' }}
         className="rounded-xl"
         key={`map-${courseId}-${holeNumber}`}
+        {...({ rotate: true } as any)}
       >
         {/* Standard OpenStreetMap layer */}
         {mapLayer === 'standard' && (
@@ -566,7 +694,9 @@ export default function DiscGolfMap({ courseId, holeNumber, className = "" }: Di
           basketLocation={basketLocation}
           userLocation={isUserNearBasket ? userLocation : null}
           holePath={holePath}
+          rotationAngle={mapRotationAngle}
         />
+        <MapRotationController angle={mapRotationAngle} center={holeMidpoint} />
         <LocationTracker onLocationUpdate={handleLocationUpdate} />
 
         {/* Tee marker (from course data) */}
